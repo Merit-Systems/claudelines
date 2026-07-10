@@ -72,8 +72,8 @@ export function StatuslineEntry({
   );
 
   const agentPrompt = free
-    ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt for instructions. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does, and only install after I approve.`
-    : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP. IMPORTANT: it runs on my machine — show me the script with your review before installing.`;
+    ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/skill.md for instructions. Download the script from ${base}/api/statuslines/${slug}/script and save the response bytes directly (curl -o) — never copy it out of a JSON field. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does (including any CLI it depends on), and only install after I approve.`
+    : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/skill.md, POST /api/download with {"slug": "${slug}"} paying via x402/MPP, and extract the script with jq -r .script — never hand-transcribe it from the JSON. IMPORTANT: it runs on my machine — show me the script with your review before installing.`;
 
   const manual: { label: string; text: string }[] = [
     {

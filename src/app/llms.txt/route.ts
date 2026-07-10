@@ -1,3 +1,10 @@
-import { router } from "@/lib/router";
+import { skillMd } from "@/lib/skill";
 
-export const GET = router.llmsTxt();
+export function GET() {
+  return new Response(skillMd(), {
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "access-control-allow-origin": "*",
+    },
+  });
+}

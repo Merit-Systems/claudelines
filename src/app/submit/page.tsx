@@ -16,30 +16,21 @@ export default function SubmitPage() {
       <div className="flex flex-col gap-1.5">
         <h1 className="text-3xl font-medium tracking-tight">Submit yours</h1>
         <p className="text-muted-foreground text-sm">
-          Upload your existing statusline as-is ($0.50 — funds an Opus security
-          audit), or a data-only spec ($0.01 — installs with zero trust). Set a
-          price and buyers pay your wallet directly.
+          Upload your existing statusline as-is ($0.15 — funds the security
+          audit). Set a price and buyers pay your wallet directly.
         </p>
       </div>
       <GatePanel
         agent={[
           {
-            label: "Upload your existing statusline as-is ($0.50)",
-            text: `Publish my current Claude Code statusline to ${base}. Read the statusLine command from ~/.claude/settings.json and the script it points to, capture a preview with: echo '{}' | COLUMNS=120 <that command>. Then fetch ${base}/llms.txt and POST /api/register ($0.50 via x402/MPP) with the script, the captured previewAnsi, a name/description, my price (or "0" for free). Sales pay the wallet that registers.`,
-          },
-          {
-            label: "Or design a safe data-only spec ($0.01)",
-            text: `Design a Claude Code statusline for me and publish it to ${base}. Fetch ${base}/llms.txt, build a v1 data-only spec (see ${base}/docs#spec), and POST /api/register ($0.01 via x402/MPP) with my name and price (or "0" for free). Sales pay the wallet that registers.`,
+            label: "Publish your current statusline ($0.15)",
+            text: `Publish my current Claude Code statusline to ${base}. Fetch ${base}/skill.md and follow its publish steps: read the statusLine command from ~/.claude/settings.json, capture a preview with echo '{}' | COLUMNS=120 <that command>, sanitize any personal data out of the preview, confirm the listing details with me, then POST /api/register ($0.15 via x402/MPP) with the script, previewAnsi, name/description, and my price (or "0" for free). Sales pay the wallet that registers.`,
           },
         ]}
         manual={[
           {
             label: "Register with the agentcash CLI",
             text: `# capture a preview of your current statusline\nPREVIEW=$(echo '{}' | COLUMNS=120 ~/.claude/statusline.sh)\n\n# upload it ($0.15 — funds the security audit; authorship comes from your wallet's verified X identity)\nnpx agentcash@latest fetch ${base}/api/register -m POST -b "$(jq -n \\\n  --rawfile script ~/.claude/statusline.sh --arg preview \"$PREVIEW\" \\\n  '{slug: \"my-statusline\", name: \"My Statusline\", description: \"...\", script: $script, previewAnsi: $preview, priceUsd: \"0\", tags: []}')"`,
-          },
-          {
-            label: "Spec format + all {variables}",
-            text: `${base}/docs#spec`,
           },
         ]}
       />

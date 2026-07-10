@@ -148,7 +148,7 @@ chmod +x ~/.claude/statuslines/$slug`}
         </p>
         <CopyBlock
           label="Ask Claude Code to publish the configured status line"
-          text={`Publish my Claude Code status line to ${base}. Read statusLine.command from ~/.claude/settings.json and read the script at that path. Show me the script before uploading it. Capture previewAnsi with COLUMNS=120. Read ${base}/llms.txt, then POST /api/register with the script, previewAnsi, slug, name, description, priceUsd, and tags.`}
+          text={`Publish my Claude Code status line to ${base}. Read statusLine.command from ~/.claude/settings.json and read the script at that path. Show me the script before uploading it. Capture previewAnsi with COLUMNS=120 and sanitize any personal data. Read ${base}/skill.md, then POST /api/register with the script, previewAnsi, slug, name, description, priceUsd, and tags.`}
         />
       </section>
 
@@ -214,10 +214,10 @@ chmod +x ~/.claude/statuslines/$slug`}
             /openapi.json
           </a>
           . Agent instructions are available at{" "}
-          <a href="/llms.txt" className="text-foreground underline underline-offset-4">
-            /llms.txt
-          </a>
-          .
+          <a href="/skill.md" className="text-foreground underline underline-offset-4">
+            /skill.md
+          </a>{" "}
+          (also served at /llms.txt).
         </p>
       </section>
     </div>
