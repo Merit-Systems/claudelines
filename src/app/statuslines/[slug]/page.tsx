@@ -133,27 +133,6 @@ export default async function StatuslinePage({ params }: Props) {
         <ListingPreview spec={row.spec} previewAnsi={row.previewAnsi} />
       </StatuslineEntry>
 
-      <FeedbackSection
-        slug={row.slug}
-        name={row.name}
-        base={siteUrl()}
-        data={{
-          average: feedback.avg,
-          count: feedback.count,
-          reviews: feedback.reviews.map((r) => ({
-            wallet: r.wallet,
-            rating: r.rating,
-            comment: r.comment,
-            at: r.createdAt.toISOString(),
-          })),
-          reports: feedback.reports.map((r) => ({
-            wallet: r.wallet,
-            comment: r.comment,
-            at: r.createdAt.toISOString(),
-          })),
-        }}
-      />
-
       {row.spec && (
         <>
           <Separator />
@@ -188,6 +167,29 @@ export default async function StatuslinePage({ params }: Props) {
           <CopyBlock text={row.script} />
         </section>
       )}
+
+      <Separator />
+
+      <FeedbackSection
+        slug={row.slug}
+        name={row.name}
+        base={siteUrl()}
+        data={{
+          average: feedback.avg,
+          count: feedback.count,
+          reviews: feedback.reviews.map((r) => ({
+            wallet: r.wallet,
+            rating: r.rating,
+            comment: r.comment,
+            at: r.createdAt.toISOString(),
+          })),
+          reports: feedback.reports.map((r) => ({
+            wallet: r.wallet,
+            comment: r.comment,
+            at: r.createdAt.toISOString(),
+          })),
+        }}
+      />
     </div>
   );
 }
