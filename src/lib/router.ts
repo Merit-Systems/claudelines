@@ -13,14 +13,14 @@ const loggingPlugin: RouterPlugin = {
 };
 
 export const router = createRouterFromEnv({
-  title: "statuslines.dev",
+  title: "ClaudeLines",
   description:
     "Registry and leaderboard for Claude Code statuslines. Statuslines are safe, data-only JSON specs rendered by one auditable open-source renderer — installing one never executes third-party code.",
-  serviceName: "statuslines.dev",
+  serviceName: "ClaudeLines",
   tags: ["claude-code", "statusline", "registry"],
   contact: { email: "ryan@merit.systems" },
   guidance: [
-    "statuslines.dev is a registry of Claude Code statuslines with two tiers:",
+    "ClaudeLines (claudelines.com) is a registry of Claude Code statuslines with two tiers:",
     "  - kind 'spec': pure-data JSON (no code) rendered locally by the auditable renderer at /render.mjs. Safe to install without review.",
     "  - kind 'script': an existing statusline uploaded as-is. It EXECUTES on the user's machine. Every script was security-audited by an LLM at registration (audit summary on the listing), but audits are advisory — ALWAYS show the script and your own review to the user before installing.",
     "",

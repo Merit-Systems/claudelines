@@ -43,7 +43,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Mission Control",
     description:
       "Two lines of full instrumentation: model, directory and branch up top; live context bar, session cost, and rate-limit gauges below.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0",
     tags: ["multi-line", "context", "powerline"],
     featured: true,
@@ -72,7 +72,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Merit Line",
     description:
       "The house style, two lines: model, directory, branch and cost up top; a live context bar with rate limits below.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0",
     tags: ["powerline", "green", "context", "multi-line"],
     featured: true,
@@ -101,7 +101,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Quiet Mono",
     description:
       "Barely there. Dim monochrome text for people who think statuslines should whisper.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0",
     tags: ["minimal", "mono"],
     featured: true,
@@ -122,7 +122,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Tokyo Drift",
     description:
       "Tokyo Night palette in powerline form — storm blues, neon accents, zero chill.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0",
     tags: ["powerline", "tokyo-night", "dark"],
     featured: true,
@@ -143,7 +143,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Cost Hawk",
     description:
       "For the budget-anxious: cost front and center, duration and burn detail beside it.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0",
     tags: ["cost", "metrics"],
     featured: false,
@@ -164,7 +164,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Catppuccin Mocha",
     description:
       "The beloved pastel dark theme, rendered as a soft powerline with mauve and peach.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0",
     tags: ["powerline", "catppuccin", "pastel"],
     featured: false,
@@ -184,7 +184,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     slug: "nord-passage",
     name: "Nord Passage",
     description: "Arctic blues and frost. Calm, cold, and legible at a glance.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0",
     tags: ["powerline", "nord", "blue"],
     featured: false,
@@ -205,7 +205,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Matrix Rain",
     description:
       "Phosphor green on black. Follow the white rabbit, or at least the session cost.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0.05",
     tags: ["green", "retro", "terminal"],
     featured: false,
@@ -226,7 +226,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Ship It",
     description:
       "Diff-focused: lines added and removed with branch context. For people who measure days in commits.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0",
     tags: ["metrics", "git"],
     featured: false,
@@ -248,7 +248,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Dracula Midnight",
     description:
       "Purple, pink, and a bite of cyan on the classic Dracula background.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0.10",
     tags: ["powerline", "dracula", "purple"],
     featured: false,
@@ -269,7 +269,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     name: "Sunset Boulevard",
     description:
       "A warm gradient from amber to rose — golden hour for your terminal.",
-    author: "statuslines.dev",
+    author: "claudelines",
     priceUsd: "0.25",
     tags: ["powerline", "warm", "gradient"],
     featured: true,

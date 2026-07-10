@@ -1,4 +1,4 @@
-# statuslines.dev
+# ClaudeLines (claudelines.com)
 
 Registry + leaderboard for Claude Code statuslines. Statuslines are **data,
 not code**: each one is a JSON spec rendered by a single auditable,

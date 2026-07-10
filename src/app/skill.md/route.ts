@@ -3,8 +3,8 @@ import { siteUrl } from "@/lib/site";
 export function GET() {
   const base = siteUrl();
   const md = `---
-name: statuslines
-description: Browse, install, publish, and sell Claude Code statuslines via ${base}. Use when the user wants a new statusline, wants to share or sell their current statusline, asks about the bar at the bottom of Claude Code, or mentions statuslines.dev.
+name: claudelines
+description: Browse, install, publish, and sell Claude Code statuslines via ${base}. Use when the user wants a new statusline, wants to share or sell their current statusline, asks about the bar at the bottom of Claude Code, or mentions claudelines.com.
 ---
 
 # Statuslines registry

@@ -57,6 +57,13 @@
       "when": 1783716781111,
       "tag": "0007_sales-count",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783717915902,
+      "tag": "0008_rebrand-authors",
+      "breakpoints": true
     }
   ]
 }

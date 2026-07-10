@@ -11,7 +11,7 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TermTheme } from "@/components/terminal-preview";
 
-const STORAGE_KEY = "statuslines-preview-theme";
+const STORAGE_KEY = "claudelines-preview-theme";
 
 const PreviewThemeContext = createContext<{
   theme: TermTheme;

@@ -12,7 +12,7 @@ export function Navbar() {
           <Link href="/" className="flex items-center gap-2">
             <Logo />
             <p className="text-sm font-medium">
-              statuslines<span className="text-muted-foreground">.dev</span>
+              Claude<span className="text-primary">Lines</span>
             </p>
           </Link>
           <nav className="flex items-center gap-4">

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * statuslines.dev renderer — spec v1
+ * ClaudeLines renderer — spec v1
  *
  * The ONLY executable installed from the registry. Statuslines themselves are
  * inert JSON specs; this file interprets them. Installing a new statusline
@@ -233,7 +233,7 @@ const mock = args.includes("--mock");
 const specPath = args.find((a) => !a.startsWith("--"));
 
 if (!specPath) {
-  console.log("statuslines.dev: usage: render.mjs <spec.json> [--mock]");
+  console.log("claudelines: usage: render.mjs <spec.json> [--mock]");
   process.exit(0);
 }
 
@@ -244,7 +244,7 @@ try {
   /* fall through */
 }
 if (!spec) {
-  console.log("⚠ statuslines.dev: invalid or unreadable spec — nothing rendered");
+  console.log("⚠ claudelines: invalid or unreadable spec — nothing rendered");
   process.exit(0);
 }
 

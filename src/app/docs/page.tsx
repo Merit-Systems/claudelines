@@ -10,7 +10,7 @@ import { siteUrl } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Docs",
   description:
-    "How statuslines.dev keeps installs safe, and how to publish and sell statuslines to agents.",
+    "How ClaudeLines keeps installs safe, and how to publish and sell statuslines to agents.",
 };
 
 const EXAMPLE_SPEC = {
