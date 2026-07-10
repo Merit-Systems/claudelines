@@ -27,7 +27,7 @@ export function Navbar() {
         <div className="flex items-center gap-2">
         <GlobalPreviewThemeToggle />
         <a
-          href="https://github.com/Merit-Systems/statuslines"
+          href="https://github.com/Merit-Systems/claudelines"
           target="_blank"
           rel="noreferrer"
         >
