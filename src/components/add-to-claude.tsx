@@ -129,8 +129,14 @@ export function StatuslineEntry({
             {author} ✓
           </a>
         ) : (
-          <span className="text-muted-foreground truncate">
-            {author} <span className="italic opacity-60">· unclaimed</span>
+          <span
+            className="text-muted-foreground flex min-w-0 items-center gap-1.5 truncate"
+            title="Unclaimed — the creator hasn't verified an identity"
+          >
+            <span className="bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px]">
+              ?
+            </span>
+            {author}
           </span>
         )}
         <span className="text-muted-foreground ml-auto shrink-0 font-mono">
