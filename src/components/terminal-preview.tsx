@@ -117,6 +117,37 @@ export function ListingPreview({
 }
 
 /**
+ * Claude Code chrome: dim transcript line, the bordered `>` input box, the
+ * statusline row exactly where CC renders it, and the footer hint row.
+ * Pure markup — usable from both server and client components.
+ */
+export function CcFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 px-4 pt-3 pb-3 font-mono text-[13px]">
+      <div style={{ color: "#525252" }}>
+        <span style={{ color: "#4ade80" }}>●</span> Refactored the auth
+        middleware and updated 3 tests.
+      </div>
+      <div
+        className="flex items-center gap-2 rounded-[6px] border px-3 py-2"
+        style={{ borderColor: "#2e2e2e" }}
+      >
+        <span style={{ color: "#737373" }}>&gt;</span>
+        <span
+          className="inline-block h-[1.1em] w-[0.55em]"
+          style={{ background: "#a3a3a3" }}
+        />
+      </div>
+      {children}
+      <div className="flex gap-4 text-[11px]" style={{ color: "#3f3f3f" }}>
+        <span>? for shortcuts</span>
+        <span>⏵⏵ accept edits on</span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Full emulator frame mimicking Claude Code's actual layout: transcript,
  * input box, then the statusline row beneath it — where it really renders.
  */
@@ -133,34 +164,12 @@ export function TerminalPreview({
 }) {
   return (
     <div
-      className={cn(
-        "overflow-hidden rounded-xl border border-white/10",
-        className,
-      )}
+      className={cn("overflow-hidden border border-white/10", className)}
       style={{ background: TERM_BG }}
     >
-      <div className="flex items-center gap-1.5 px-3.5 py-2.5">
-        <span className="size-2.5 rounded-full bg-[#ff5f57]" />
-        <span className="size-2.5 rounded-full bg-[#febc2e]" />
-        <span className="size-2.5 rounded-full bg-[#28c840]" />
-      </div>
-      <div className="flex flex-col gap-2 px-4 pt-3 pb-4 font-mono text-[13px]">
-        <div style={{ color: "#525252" }}>
-          <span style={{ color: "#4ade80" }}>●</span> Refactored the auth
-          middleware and updated 3 tests.
-        </div>
-        <div
-          className="flex items-center gap-2 rounded-md border px-3 py-2"
-          style={{ borderColor: "#2e2e2e" }}
-        >
-          <span style={{ color: "#737373" }}>&gt;</span>
-          <span
-            className="inline-block h-[1.1em] w-[0.55em]"
-            style={{ background: "#a3a3a3" }}
-          />
-        </div>
+      <CcFrame>
         <ListingPreview spec={spec} previewAnsi={previewAnsi} vars={vars} />
-      </div>
+      </CcFrame>
     </div>
   );
 }

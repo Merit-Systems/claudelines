@@ -63,6 +63,8 @@ export const events = pgTable("events", {
   kind: text("kind", { enum: ["register", "install", "purchase"] }).notNull(),
   /** Paying/authenticated wallet when known. */
   wallet: text("wallet"),
+  /** Salted hash of caller IP — dedupes free installs, never stores raw IPs. */
+  ipHash: text("ip_hash"),
   amountUsd: numeric("amount_usd", { precision: 10, scale: 6 })
     .notNull()
     .default("0"),

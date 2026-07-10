@@ -43,6 +43,13 @@
       "when": 1783715846090,
       "tag": "0005_mission-control",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783716382206,
+      "tag": "0006_install-dedup",
+      "breakpoints": true
     }
   ]
 }

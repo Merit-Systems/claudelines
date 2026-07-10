@@ -6,6 +6,7 @@ import { Check, ChevronDown, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CopyBlock } from "@/components/copy-block";
+import { CcFrame } from "@/components/terminal-preview";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,6 +43,7 @@ export function StatuslineEntry({
 }) {
   const [manualOpen, setManualOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [cc, setCc] = useState(false);
   const free = Number(priceUsd) === 0;
   const price = `$${Number(priceUsd).toFixed(2)}`;
   const script = kind === "script";
@@ -116,7 +118,7 @@ export function StatuslineEntry({
         </Link>
         <span className="text-muted-foreground truncate">{author}</span>
         <span className="text-muted-foreground ml-auto shrink-0 font-mono">
-          {installs} installs
+          {installs}
         </span>
         <div className="flex shrink-0 items-center">
           <Button
@@ -158,9 +160,19 @@ export function StatuslineEntry({
           </Button>
         </div>
       </div>
-      <div className="w-full rounded-lg bg-[#0d0d0d] px-3 py-2.5">
-        {children}
-      </div>
+      {/* click anywhere on the black area to preview it inside Claude Code */}
+      <button
+        type="button"
+        onClick={() => setCc((v) => !v)}
+        title={cc ? "Back to the bare statusline" : "Preview in Claude Code"}
+        className="w-full cursor-pointer bg-[#0d0d0d] text-left"
+      >
+        {cc ? (
+          <CcFrame>{children}</CcFrame>
+        ) : (
+          <div className="px-3 py-2.5">{children}</div>
+        )}
+      </button>
       {manualOpen && (
         <div className="flex flex-col gap-3 rounded-lg border p-3">
           <p className="text-muted-foreground text-xs font-medium">

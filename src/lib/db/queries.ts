@@ -1,4 +1,4 @@
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
 
 import { db, events, statuslines, type StatuslineRow } from "./index";
 import type { StatuslineSpec } from "../statusline/spec";
@@ -103,8 +103,30 @@ export async function createStatusline(input: {
 
 export async function recordInstall(
   row: StatuslineRow,
-  opts: { wallet: string | null; amountUsd: string; purchase: boolean },
+  opts: {
+    wallet: string | null;
+    amountUsd: string;
+    purchase: boolean;
+    ipHash?: string | null;
+  },
 ): Promise<void> {
+  // Free installs dedupe per caller per day; purchases always count.
+  if (!opts.purchase && opts.ipHash) {
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recent = await db()
+      .select({ id: events.id })
+      .from(events)
+      .where(
+        and(
+          eq(events.statuslineId, row.id),
+          eq(events.ipHash, opts.ipHash),
+          gt(events.createdAt, dayAgo),
+        ),
+      )
+      .limit(1);
+    if (recent.length > 0) return;
+  }
+
   await db()
     .update(statuslines)
     .set({
@@ -118,6 +140,7 @@ export async function recordInstall(
     kind: opts.purchase ? "purchase" : "install",
     wallet: opts.wallet,
     amountUsd: opts.amountUsd,
+    ipHash: opts.ipHash ?? null,
   });
 }
 

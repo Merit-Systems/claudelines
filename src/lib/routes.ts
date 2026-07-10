@@ -14,6 +14,8 @@
  *                    user's machine, so listings carry detected capabilities
  *                    and install flows always include a review step.
  */
+import { createHash } from "node:crypto";
+
 import { z } from "zod";
 import { HttpError } from "@agentcash/router";
 
@@ -76,6 +78,16 @@ function publicEntry(row: StatuslineRow, includePayload: boolean) {
         ? (row.script ?? undefined)
         : undefined,
   };
+}
+
+/** Salted caller fingerprint for free-install dedup. Raw IPs never persist. */
+function callerHash(request: Request): string {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  return createHash("sha256")
+    .update(`${process.env.MPP_SECRET_KEY ?? "statuslines"}:${ip}`)
+    .digest("hex")
+    .slice(0, 32);
 }
 
 function installInstructions(row: StatuslineRow) {
@@ -154,7 +166,7 @@ router
   .description(
     "Raw spec JSON for a FREE data-only statusline — save directly to ~/.claude/statuslines/{slug}.json. Paid entries return 402 guidance.",
   )
-  .handler(async ({ params }) => {
+  .handler(async ({ params, request }) => {
     const row = await getStatusline(params.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
     if (row.kind !== "spec" || !row.spec) {
@@ -169,7 +181,12 @@ router
         402,
       );
     }
-    await recordInstall(row, { wallet: null, amountUsd: "0", purchase: false });
+    await recordInstall(row, {
+      wallet: null,
+      amountUsd: "0",
+      purchase: false,
+      ipHash: callerHash(request),
+    });
     return row.spec;
   });
 
@@ -179,7 +196,7 @@ router
   .description(
     "Raw script source for a FREE script statusline, as text/plain. REVIEW BEFORE INSTALLING — this code runs on the user's machine. Paid entries return 402 guidance.",
   )
-  .handler(async ({ params }) => {
+  .handler(async ({ params, request }) => {
     const row = await getStatusline(params.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
     if (row.kind !== "script" || !row.script) {
@@ -194,7 +211,12 @@ router
         402,
       );
     }
-    await recordInstall(row, { wallet: null, amountUsd: "0", purchase: false });
+    await recordInstall(row, {
+      wallet: null,
+      amountUsd: "0",
+      purchase: false,
+      ipHash: callerHash(request),
+    });
     return new Response(row.script, {
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
