@@ -11,7 +11,7 @@ export function ShareButton({ base }: { base: string }) {
   const [copied, setCopied] = useState(false);
   const host = base.replace(/^https?:\/\//, "");
 
-  const prompt = `Publish my Claude Code statusline to ${base} — fetch ${base}/llms.txt and follow the publish flow (register my current statusline with a captured preview).`;
+  const prompt = `Set up the statuslines skill: fetch ${base}/skill.md and save it to ~/.claude/skills/statuslines/SKILL.md. It lets you browse, install, publish, and sell Claude Code statuslines from ${base}.`;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -29,7 +29,7 @@ export function ShareButton({ base }: { base: string }) {
         className="group flex h-10 max-w-full cursor-pointer items-center gap-2.5 border px-4 font-mono text-sm transition-colors hover:bg-muted"
       >
         <span className="truncate">
-          {copied ? "Copied — paste into Claude Code" : `Set up ${host}/llms.txt`}
+          {copied ? "Copied — paste into Claude Code" : `Set up ${host}/skill.md`}
         </span>
         {copied ? (
           <Check className="text-primary size-4 shrink-0" />

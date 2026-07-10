@@ -49,6 +49,9 @@ export default function RootLayout({
                 </a>
               </p>
               <div className="flex items-center gap-4">
+                <a href="/skill.md" className="hover:text-foreground">
+                  skill.md
+                </a>
                 <a href="/llms.txt" className="hover:text-foreground">
                   llms.txt
                 </a>
