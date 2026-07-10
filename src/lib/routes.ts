@@ -21,16 +21,8 @@ import { siteUrl } from "./site";
 import { detectCapabilities } from "./statusline/capabilities";
 import { hasHighSeverity, scanRedFlags } from "./statusline/redflags";
 import { auditAvailable, auditScript } from "./statusline/audit";
+import { getIdentity, oauthConfigured, startClaim } from "./identity";
 import {
-  fetchTweet,
-  getIdentity,
-  HANDLE,
-  markVerified,
-  startClaim,
-  tweetIdFromUrl,
-} from "./identity";
-import {
-  adoptVerifiedAuthor,
   bumpSalesCount,
   createStatusline,
   getStatusline,
@@ -315,7 +307,7 @@ router
     previewAnsi: "Neon Nights ~/proj $1.42",
   })
   .description(
-    `Publish a Claude Code statusline for a flat $${REGISTER_PRICE}. Upload your script as-is in \`script\` with a captured \`previewAnsi\`. The fee funds an LLM security audit at registration; scripts that fail are not listed (the fee bought the audit). Set priceUsd ("0" = free, or any amount) to sell — buyers pay the wallet you registered from, directly. Verify an X identity (identity/claim + identity/verify) to display @handle as author; otherwise unclaimed.`,
+    `Publish a Claude Code statusline for a flat $${REGISTER_PRICE}. Upload your script as-is in \`script\` with a captured \`previewAnsi\`. The fee funds an LLM security audit at registration; scripts that fail are not listed (the fee bought the audit). Set priceUsd ("0" = free, or any amount) to sell — buyers pay the wallet you registered from, directly. Connect an X identity (identity/connect returns a sign-in URL) to display @handle as author; otherwise unclaimed.`,
   )
   .validate(async (body) => {
     if (!auditAvailable()) {
@@ -415,26 +407,16 @@ router
             steps: [
               {
                 step: 1,
-                what: "Request a code",
-                call: `POST ${base}/api/identity/claim`,
+                what: "Get a sign-in link",
+                call: `POST ${base}/api/identity/connect`,
                 auth: "SIWX (sign with the same wallet you registered from)",
-                body: { handle: "yourhandle" },
-                returns: "a one-time verification code",
+                returns: "an x.com authorization URL",
               },
               {
                 step: 2,
-                what: "Tweet the code",
+                what: "Sign in with X",
                 detail:
-                  "Post a public tweet from @yourhandle containing the code.",
-              },
-              {
-                step: 3,
-                what: "Verify",
-                call: `POST ${base}/api/identity/verify`,
-                auth: "SIWX (same wallet)",
-                body: { tweetUrl: "https://x.com/yourhandle/status/…" },
-                result:
-                  "We read the tweet and stamp @you on all your listings.",
+                  "Open the URL in a browser and sign in. Whoever you sign in as becomes the verified @author on all your listings — done, nothing else to call.",
               },
             ],
           },
@@ -448,54 +430,21 @@ router
 // --- Identity (wallet -> verified X handle) -----------------------------------
 
 router
-  .route({ path: "identity/claim", method: "POST" })
+  .route({ path: "identity/connect", method: "POST" })
   .siwx()
-  .body(z.object({ handle: z.string().regex(HANDLE, "X handle without @") }))
-  .inputExample({ handle: "yourhandle" })
   .description(
-    "Start claiming an X (Twitter) identity for your wallet. Sign with SIWX. Returns a one-time code — post it in a tweet from that handle, then call identity/verify with the tweet URL. Verified wallets get their @handle shown as the author on their listings.",
+    "Connect your X/Twitter to your wallet via Sign in with X. Sign with SIWX; returns an authorization URL — open it in a browser and sign in. On success you're credited as @you on every listing from this wallet.",
   )
-  .handler(async ({ body, wallet }) => {
+  .handler(async ({ wallet }) => {
     if (!wallet) throw new HttpError("Wallet identity required", 401);
-    const row = await startClaim(wallet, body.handle);
+    if (!oauthConfigured()) {
+      throw new HttpError("X sign-in is not configured on this server", 503);
+    }
+    const authorizeUrl = await startClaim(wallet);
     return {
-      handle: row.twitterHandle,
-      code: row.code,
-      next: `Post a tweet from @${row.twitterHandle} containing "${row.code}", then POST /api/identity/verify with {"tweetUrl": "https://x.com/${row.twitterHandle}/status/..."}`,
+      authorizeUrl,
+      next: "Open authorizeUrl in a browser and sign in with X. When it finishes, your listings show @you.",
     };
-  });
-
-router
-  .route({ path: "identity/verify", method: "POST" })
-  .siwx()
-  .body(z.object({ tweetUrl: z.string().url().max(200) }))
-  .inputExample({ tweetUrl: "https://x.com/yourhandle/status/1234567890123456789" })
-  .description(
-    "Verify a pending X identity claim: we read the tweet and check it contains your code and was posted by the claimed handle. On success, your listings display @handle as a verified author.",
-  )
-  .handler(async ({ body, wallet }) => {
-    if (!wallet) throw new HttpError("Wallet identity required", 401);
-    const identity = await getIdentity(wallet);
-    if (!identity) throw new HttpError("No pending claim — call identity/claim first", 404);
-    if (identity.verified) return { verified: true, handle: identity.twitterHandle };
-
-    const id = tweetIdFromUrl(body.tweetUrl);
-    if (!id) throw new HttpError("Not a valid x.com status URL", 400);
-    const tweet = await fetchTweet(id);
-    if (!tweet) throw new HttpError("Could not read that tweet — is it public?", 503);
-    if (tweet.screenName.toLowerCase() !== identity.twitterHandle.toLowerCase()) {
-      throw new HttpError(
-        `Tweet is by @${tweet.screenName}, but the claim is for @${identity.twitterHandle}`,
-        403,
-      );
-    }
-    if (!tweet.text.includes(identity.code)) {
-      throw new HttpError("Tweet does not contain your verification code", 403);
-    }
-
-    await markVerified(wallet);
-    await adoptVerifiedAuthor(wallet, identity.twitterHandle);
-    return { verified: true, handle: identity.twitterHandle };
   });
 
 router
@@ -509,7 +458,7 @@ router
     ]);
     return {
       wallet: params.wallet.toLowerCase(),
-      identity: identity?.verified ? { handle: identity.twitterHandle } : null,
+      identity: identity?.verified && identity.twitterHandle ? { handle: identity.twitterHandle } : null,
       statuslines: rows.map((r) => publicEntry(r, false)),
     };
   });
@@ -520,7 +469,7 @@ router
   .description("Public identity lookup: verified X handle for a wallet, if any.")
   .handler(async ({ params }) => {
     const identity = await getIdentity(params.wallet);
-    if (!identity?.verified) return { verified: false };
+    if (!identity?.verified || !identity.twitterHandle) return { verified: false };
     return { verified: true, handle: identity.twitterHandle };
   });
 

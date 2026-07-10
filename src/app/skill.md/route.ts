@@ -79,10 +79,10 @@ Outcomes:
 - \`409\` slug taken · \`503\` audit service unavailable (retry later). Both fail
   **before** payment — nothing was charged.
 
-**Optional identity**: listings show "anonymous" until the wallet claims an X
-handle — \`POST ${base}/api/identity/claim\` \`{"handle": "..."}\` (SIWX-signed,
-returns a code) → tweet the code → \`POST ${base}/api/identity/verify\`
-\`{"tweetUrl": "..."}\` (SIWX-signed).
+**Optional identity**: listings show "anonymous" until the wallet connects an
+X account — \`POST ${base}/api/identity/claim\` (SIWX-signed, free, no body)
+returns a sign-in URL. Give it to the user to open in a browser; signing in
+with X stamps their @handle on all the wallet's listings. Nothing else to call.
 
 ## Feedback
 
