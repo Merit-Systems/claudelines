@@ -2,16 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Plus } from "lucide-react";
+import { Check, ChevronDown, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { GatePanel, type GateBlock } from "@/components/gate-panel";
+import { CopyBlock } from "@/components/copy-block";
 import { cn } from "@/lib/utils";
 
 /**
  * One leaderboard entry: bordered container with a header line (rank, name,
- * author, installs, Add button) above a full-width banner. The banner never
- * shares a row with controls, so it always spans the container.
+ * author, installs, Add button) above a full-width banner.
+ *
+ * "Add" is a split button: the main action copies the agent install prompt
+ * to the clipboard (paste into Claude Code and go); the chevron reveals
+ * manual install commands.
  */
 export function StatuslineEntry({
   rank,
@@ -37,7 +40,8 @@ export function StatuslineEntry({
   /** The rendered banner strip. */
   children?: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const free = Number(priceUsd) === 0;
   const price = `$${Number(priceUsd).toFixed(2)}`;
   const script = kind === "script";
@@ -51,20 +55,15 @@ export function StatuslineEntry({
     2,
   );
 
-  const agent: GateBlock[] = [
-    {
-      label: "Paste into Claude Code",
-      text: script
-        ? free
-          ? `Install the "${name}" statusline script from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt for instructions. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does, and only install after I approve.`
-          : `Buy and install the "${name}" statusline script (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP. IMPORTANT: it runs on my machine — show me the script with your review before installing.`
-        : free
-          ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt and follow the install instructions — it's a data-only JSON spec plus one auditable renderer; never run registry code.`
-          : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP, then follow the returned install instructions.`,
-    },
-  ];
+  const agentPrompt = script
+    ? free
+      ? `Install the "${name}" statusline script from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt for instructions. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does, and only install after I approve.`
+      : `Buy and install the "${name}" statusline script (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP. IMPORTANT: it runs on my machine — show me the script with your review before installing.`
+    : free
+      ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt and follow the install instructions — it's a data-only JSON spec plus one auditable renderer; never run registry code.`
+      : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP, then follow the returned install instructions.`;
 
-  const manual: GateBlock[] = script
+  const manual: { label: string; text: string }[] = script
     ? [
         {
           label: free
@@ -99,7 +98,7 @@ export function StatuslineEntry({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2.5 rounded-xl border p-3 transition-colors hover:border-border",
+        "flex flex-col gap-2.5 rounded-xl border p-3",
         className,
       )}
     >
@@ -119,28 +118,59 @@ export function StatuslineEntry({
         <span className="text-muted-foreground ml-auto shrink-0 font-mono">
           {installs} installs
         </span>
-        <Button
-          variant={open ? "secondary" : "outline"}
-          size="xs"
-          className="shrink-0"
-          onClick={() => setOpen((o) => !o)}
-        >
-          <Plus
-            className={cn("size-3 transition-transform", open && "rotate-45")}
-          />
-          {free ? "Add" : `Add · ${price}`}
-          <ChevronDown
-            className={cn(
-              "size-2.5 transition-transform",
-              open && "rotate-180",
+        <div className="flex shrink-0 items-center">
+          <Button
+            variant="outline"
+            size="xs"
+            className="rounded-r-none"
+            title="Copies an install prompt — paste it into Claude Code"
+            onClick={() => {
+              navigator.clipboard.writeText(agentPrompt);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? (
+              <>
+                <Check className="size-3 text-primary" />
+                Prompt copied
+              </>
+            ) : (
+              <>
+                <Plus className="size-3" />
+                {free ? "Add" : `Add · ${price}`}
+              </>
             )}
-          />
-        </Button>
+          </Button>
+          <Button
+            variant={manualOpen ? "secondary" : "outline"}
+            size="xs"
+            className="-ml-px rounded-l-none px-1"
+            aria-label="Manual install"
+            onClick={() => setManualOpen((o) => !o)}
+          >
+            <ChevronDown
+              className={cn(
+                "size-3 transition-transform",
+                manualOpen && "rotate-180",
+              )}
+            />
+          </Button>
+        </div>
       </div>
       <div className="w-full rounded-lg bg-[#0d0d0d] px-3 py-2.5">
         {children}
       </div>
-      {open && <GatePanel agent={agent} manual={manual} />}
+      {manualOpen && (
+        <div className="flex flex-col gap-3 rounded-lg border p-3">
+          <p className="text-muted-foreground text-xs font-medium">
+            Add manually
+          </p>
+          {manual.map((b, i) => (
+            <CopyBlock key={i} label={b.label} text={b.text} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

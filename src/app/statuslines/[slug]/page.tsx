@@ -5,8 +5,12 @@ import { Download, FileCode2, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CopyBlock } from "@/components/copy-block";
-import { AddToClaude } from "@/components/add-to-claude";
-import { TerminalPreview, StatuslineRow } from "@/components/terminal-preview";
+import { StatuslineEntry } from "@/components/add-to-claude";
+import {
+  ListingPreview,
+  StatuslineRow,
+  TerminalPreview,
+} from "@/components/terminal-preview";
 import { getStatusline } from "@/lib/db/queries";
 import { MOCK_SESSIONS } from "@/lib/statusline/mock";
 import { siteUrl } from "@/lib/site";
@@ -101,14 +105,17 @@ export default async function StatuslinePage({ params }: Props) {
         </div>
       )}
 
-      <AddToClaude
-        className="items-start"
+      <StatuslineEntry
         slug={row.slug}
         name={row.name}
+        author={row.author}
+        installs={formatCount(row.installs)}
         kind={row.kind}
         priceUsd={row.priceUsd}
         base={siteUrl()}
-      />
+      >
+        <ListingPreview spec={row.spec} previewAnsi={row.previewAnsi} />
+      </StatuslineEntry>
 
       {row.spec && (
         <>
