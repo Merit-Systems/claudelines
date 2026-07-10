@@ -28,7 +28,7 @@ export const router = createRouterFromEnv({
     "Detail:   GET /api/statuslines/{slug} — metadata + payload and install instructions when free.",
     "Ranks:    GET /api/leaderboard",
     "Buy:      POST /api/download with {\"slug\": \"...\"} — pays the creator's asking price straight to their wallet; returns the payload with install instructions.",
-    "Publish:  POST /api/register — pass `spec` ($0.01) for the data-only tier, or `script` + `previewAnsi` ($0.50, funds the security audit; rejected scripts are not listed and the fee is not refunded). Set priceUsd (\"0\" free, up to \"25\") and payoutAddress to sell.",
+    "Publish:  POST /api/register — pass `spec` ($0.01) for the data-only tier, or `script` + `previewAnsi` ($0.50, funds the security audit; rejected scripts are not listed and the fee is not refunded). Set priceUsd (\"0\" free, up to \"25\") to sell — proceeds pay the registering wallet. Verify an X identity via identity/claim + identity/verify to show @handle as author.",
     "",
     "Install a spec: save the JSON to ~/.claude/statuslines/{slug}.json, download /render.mjs once to ~/.claude/statuslines/render.mjs, set statusLine.command in ~/.claude/settings.json to: node ~/.claude/statuslines/render.mjs ~/.claude/statuslines/{slug}.json",
     "Install a script: REVIEW IT WITH THE USER FIRST, then save to ~/.claude/statuslines/{slug}, chmod +x, and set statusLine.command to that path.",

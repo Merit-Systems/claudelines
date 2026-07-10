@@ -17,7 +17,9 @@ export const statuslines = pgTable("statuslines", {
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   author: text("author").notNull().default("anonymous"),
-  /** EVM address paid on purchases (x402 payTo). Null → platform wallet. */
+  /** The creator's wallet: pays the registration fee, receives sale
+   *  proceeds (x402 payTo), and carries the verified X identity. One wallet,
+   *  no multi-mapping. Null only for platform seeds. */
   authorWallet: text("author_wallet"),
   /** Decimal USD string; "0" = free. */
   priceUsd: numeric("price_usd", { precision: 10, scale: 6 })
@@ -58,6 +60,21 @@ export const statuslines = pgTable("statuslines", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+});
+
+/** Wallet → verified Twitter/X identity. The wallet (SIWX) is the account. */
+export const identities = pgTable("identities", {
+  /** Lowercased EVM address, proven via SIWX signature. */
+  wallet: text("wallet").primaryKey(),
+  /** Claimed X handle, without @. */
+  twitterHandle: text("twitter_handle").notNull(),
+  /** One-time code the user must post in a tweet from that handle. */
+  code: text("code").notNull(),
+  verified: boolean("verified").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
 });
 
 export const events = pgTable("events", {

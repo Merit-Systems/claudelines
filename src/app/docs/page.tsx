@@ -180,8 +180,9 @@ export default function DocsPage() {
           </a>
           . Set <span className="font-mono text-xs">priceUsd</span> to
           &ldquo;0&rdquo; for a free listing, or up to $25 to sell — buyers pay
-          your <span className="font-mono text-xs">payoutAddress</span>{" "}
-          directly, on-chain, with no platform cut.
+          the wallet you registered from, directly on-chain (1 in 20 sales
+          settles to the registry: the 5% volume fee). Verify an X handle via
+          the identity API to display it as a verified author.
         </p>
         <CopyBlock
           label="Ask your agent to publish"
@@ -196,7 +197,6 @@ export default function DocsPage() {
               description: "Synthwave purple-to-cyan powerline with cost tracking.",
               priceUsd: "0.10",
               author: "you",
-              payoutAddress: "0xYourWallet…",
               tags: ["powerline", "synthwave"],
               spec: { version: 1, segments: ["…"] },
             },

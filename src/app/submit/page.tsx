@@ -25,11 +25,11 @@ export default function SubmitPage() {
         agent={[
           {
             label: "Upload your existing statusline as-is ($0.50)",
-            text: `Publish my current Claude Code statusline to ${base}. Read the statusLine command from ~/.claude/settings.json and the script it points to, capture a preview with: echo '{}' | COLUMNS=120 <that command>. Then fetch ${base}/llms.txt and POST /api/register ($0.50 via x402/MPP) with the script, the captured previewAnsi, a name/description, my price (or "0" for free) and payout wallet.`,
+            text: `Publish my current Claude Code statusline to ${base}. Read the statusLine command from ~/.claude/settings.json and the script it points to, capture a preview with: echo '{}' | COLUMNS=120 <that command>. Then fetch ${base}/llms.txt and POST /api/register ($0.50 via x402/MPP) with the script, the captured previewAnsi, a name/description, my price (or "0" for free). Sales pay the wallet that registers.`,
           },
           {
             label: "Or design a safe data-only spec ($0.01)",
-            text: `Design a Claude Code statusline for me and publish it to ${base}. Fetch ${base}/llms.txt, build a v1 data-only spec (see ${base}/docs#spec), and POST /api/register ($0.01 via x402/MPP) with my name, price (or "0" for free), and payout wallet.`,
+            text: `Design a Claude Code statusline for me and publish it to ${base}. Fetch ${base}/llms.txt, build a v1 data-only spec (see ${base}/docs#spec), and POST /api/register ($0.01 via x402/MPP) with my name and price (or "0" for free). Sales pay the wallet that registers.`,
           },
         ]}
         manual={[

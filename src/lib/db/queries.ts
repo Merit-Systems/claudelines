@@ -155,3 +155,14 @@ export async function bumpSalesCount(row: StatuslineRow): Promise<void> {
     .set({ salesCount: sql`${statuslines.salesCount} + 1` })
     .where(eq(statuslines.id, row.id));
 }
+
+/** After identity verification, stamp @handle on everything this wallet owns. */
+export async function adoptVerifiedAuthor(
+  wallet: string,
+  handle: string,
+): Promise<void> {
+  await db()
+    .update(statuslines)
+    .set({ author: `@${handle}` })
+    .where(eq(statuslines.authorWallet, wallet.toLowerCase()));
+}

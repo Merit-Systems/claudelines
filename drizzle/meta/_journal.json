@@ -64,6 +64,13 @@
       "when": 1783717915902,
       "tag": "0008_rebrand-authors",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783718480810,
+      "tag": "0009_identities",
+      "breakpoints": true
     }
   ]
 }

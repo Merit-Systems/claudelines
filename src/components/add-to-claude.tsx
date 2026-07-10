@@ -118,7 +118,21 @@ export function StatuslineEntry({
         >
           {name}
         </Link>
-        <span className="text-muted-foreground truncate">{author}</span>
+        {author.startsWith("@") ? (
+          <a
+            href={`https://x.com/${author.slice(1)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary truncate hover:underline"
+            title="Verified via X"
+          >
+            {author} ✓
+          </a>
+        ) : (
+          <span className="text-muted-foreground truncate">
+            {author} <span className="italic opacity-60">· unclaimed</span>
+          </span>
+        )}
         <span className="text-muted-foreground ml-auto shrink-0 font-mono">
           {installs}
         </span>

@@ -24,6 +24,15 @@ import { statuslineSpecSchema, VARIABLE_NAMES } from "./statusline/spec";
 import { detectCapabilities } from "./statusline/capabilities";
 import { auditScript } from "./statusline/audit";
 import {
+  fetchTweet,
+  getIdentity,
+  HANDLE,
+  markVerified,
+  startClaim,
+  tweetIdFromUrl,
+} from "./identity";
+import {
+  adoptVerifiedAuthor,
   bumpSalesCount,
   createStatusline,
   getStatusline,
@@ -45,7 +54,6 @@ const SCRIPT_REGISTER_PRICE = "0.50";
  * N=20 => 5% of volume in expectation. Makes wash-trading cost ~5% + gas.
  */
 const FEE_EVERY_N = 20;
-const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,7}$/;
 
 const priceString = z
@@ -343,8 +351,6 @@ const registerBody = z
     previewAnsi: z.string().max(8_192).optional(),
     priceUsd: priceString.default("0"),
     author: z.string().min(1).max(48).default("anonymous"),
-    /** EVM address that receives sale proceeds. Required when priceUsd > 0. */
-    payoutAddress: z.string().regex(EVM_ADDRESS).optional(),
     tags: z.array(z.string().min(1).max(24)).max(5).default([]),
   })
   .refine((b) => (b.spec ? !b.script : Boolean(b.script)), {
@@ -369,7 +375,6 @@ router
     description: "Synthwave purple-to-cyan powerline with cost tracking.",
     priceUsd: "0.10",
     author: "vibes.eth",
-    payoutAddress: "0x1111111111111111111111111111111111111111",
     tags: ["powerline", "synthwave"],
     spec: {
       version: 1,
@@ -382,15 +387,9 @@ router
     },
   })
   .description(
-    `Publish a statusline. Two tiers: pass \`spec\` ($${SPEC_REGISTER_PRICE}) for a safe data-only v1 spec (variables: ${VARIABLE_NAMES.join(", ")}), or pass \`script\` (+ \`previewAnsi\`, $${SCRIPT_REGISTER_PRICE}) to upload an existing statusline as-is — the script fee funds an Opus security audit at registration; rejected scripts are not listed (the fee bought the audit). Set priceUsd ("0" = free, max "${MAX_PRICE_USD}") and payoutAddress to sell; buyers pay your wallet directly.`,
+    `Publish a statusline. Two tiers: pass \`spec\` ($${SPEC_REGISTER_PRICE}) for a safe data-only v1 spec (variables: ${VARIABLE_NAMES.join(", ")}), or pass \`script\` (+ \`previewAnsi\`, $${SCRIPT_REGISTER_PRICE}) to upload an existing statusline as-is — the script fee funds an Opus security audit at registration; rejected scripts are not listed (the fee bought the audit). Set priceUsd ("0" = free, max "${MAX_PRICE_USD}") to sell — buyers pay the wallet you registered from, directly. Verify an X identity (identity/claim + identity/verify) to display @handle as author; otherwise listings show as unclaimed.`,
   )
   .validate(async (body) => {
-    if (Number(body.priceUsd) > 0 && !body.payoutAddress) {
-      throw new HttpError(
-        "payoutAddress is required when priceUsd > 0 — sale proceeds are paid directly to it",
-        400,
-      );
-    }
     if (body.script && !process.env.ANTHROPIC_API_KEY) {
       throw new HttpError(
         "Script listings are temporarily unavailable (audit service not configured)",
@@ -428,12 +427,14 @@ router
       }
     }
 
+    const identity = wallet ? await getIdentity(wallet) : null;
     const row = await createStatusline({
       slug: body.slug,
       name: body.name,
       description: body.description,
-      author: body.author,
-      authorWallet: body.payoutAddress ?? null,
+      author: identity?.verified ? `@${identity.twitterHandle}` : body.author,
+      // The registering wallet is the payout wallet and the identity anchor.
+      authorWallet: wallet ? wallet.toLowerCase() : null,
       priceUsd: Number(body.priceUsd) === 0 ? "0" : body.priceUsd,
       kind,
       spec: body.spec ?? null,
@@ -466,6 +467,69 @@ router
           : "Listed as free — anyone can install it via GET /api/statuslines/" +
             row.slug,
     };
+  });
+
+// --- Identity (wallet -> verified X handle) -----------------------------------
+
+router
+  .route({ path: "identity/claim", method: "POST" })
+  .siwx()
+  .body(z.object({ handle: z.string().regex(HANDLE, "X handle without @") }))
+  .inputExample({ handle: "yourhandle" })
+  .description(
+    "Start claiming an X (Twitter) identity for your wallet. Sign with SIWX. Returns a one-time code — post it in a tweet from that handle, then call identity/verify with the tweet URL. Verified wallets get their @handle shown as the author on their listings.",
+  )
+  .handler(async ({ body, wallet }) => {
+    if (!wallet) throw new HttpError("Wallet identity required", 401);
+    const row = await startClaim(wallet, body.handle);
+    return {
+      handle: row.twitterHandle,
+      code: row.code,
+      next: `Post a tweet from @${row.twitterHandle} containing "${row.code}", then POST /api/identity/verify with {"tweetUrl": "https://x.com/${row.twitterHandle}/status/..."}`,
+    };
+  });
+
+router
+  .route({ path: "identity/verify", method: "POST" })
+  .siwx()
+  .body(z.object({ tweetUrl: z.string().url().max(200) }))
+  .inputExample({ tweetUrl: "https://x.com/yourhandle/status/1234567890123456789" })
+  .description(
+    "Verify a pending X identity claim: we read the tweet and check it contains your code and was posted by the claimed handle. On success, your listings display @handle as a verified author.",
+  )
+  .handler(async ({ body, wallet }) => {
+    if (!wallet) throw new HttpError("Wallet identity required", 401);
+    const identity = await getIdentity(wallet);
+    if (!identity) throw new HttpError("No pending claim — call identity/claim first", 404);
+    if (identity.verified) return { verified: true, handle: identity.twitterHandle };
+
+    const id = tweetIdFromUrl(body.tweetUrl);
+    if (!id) throw new HttpError("Not a valid x.com status URL", 400);
+    const tweet = await fetchTweet(id);
+    if (!tweet) throw new HttpError("Could not read that tweet — is it public?", 503);
+    if (tweet.screenName.toLowerCase() !== identity.twitterHandle.toLowerCase()) {
+      throw new HttpError(
+        `Tweet is by @${tweet.screenName}, but the claim is for @${identity.twitterHandle}`,
+        403,
+      );
+    }
+    if (!tweet.text.includes(identity.code)) {
+      throw new HttpError("Tweet does not contain your verification code", 403);
+    }
+
+    await markVerified(wallet);
+    await adoptVerifiedAuthor(wallet, identity.twitterHandle);
+    return { verified: true, handle: identity.twitterHandle };
+  });
+
+router
+  .route({ path: "identity/{wallet}", method: "GET" })
+  .unprotected()
+  .description("Public identity lookup: verified X handle for a wallet, if any.")
+  .handler(async ({ params }) => {
+    const identity = await getIdentity(params.wallet);
+    if (!identity?.verified) return { verified: false };
+    return { verified: true, handle: identity.twitterHandle };
   });
 
 // --- Misc --------------------------------------------------------------------

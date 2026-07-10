@@ -57,8 +57,10 @@ instructions.
 - A data-only design: pass \`spec\` (v1 format, see ${base}/docs#spec). Costs $0.01.
 
 Both accept: \`slug\`, \`name\`, \`description\`, \`priceUsd\` ("0" free, up to
-"25"), \`payoutAddress\` (required when selling — buyers pay it directly),
-\`author\`, \`tags\`.
+"25"), \`author\`, \`tags\`. Sale proceeds pay the wallet that registered —
+one wallet is the account. Verify an X identity (POST /api/identity/claim
+then /api/identity/verify with a tweeted code, both SIWX-signed) and your
+listings display @handle as a verified author; otherwise they are unclaimed.
 
 ## Rules
 
