@@ -17,6 +17,7 @@ import { z } from "zod";
 import { HttpError } from "@agentcash/router";
 
 import { router } from "./router";
+import { siteUrl } from "./site";
 import { detectCapabilities } from "./statusline/capabilities";
 import { hasHighSeverity, scanRedFlags } from "./statusline/redflags";
 import { auditScript } from "./statusline/audit";
@@ -386,10 +387,12 @@ router
       tags: body.tags,
       registeredBy: wallet,
     });
+    const base = siteUrl();
     return {
       slug: row.slug,
-      url: `/statuslines/${row.slug}`,
       listed: true,
+      // The live page for the statusline they just uploaded.
+      url: `${base}/statuslines/${row.slug}`,
       audit: {
         verdict: audit.verdict,
         summary: audit.summary,
@@ -398,11 +401,21 @@ router
       },
       capabilities: row.capabilities,
       priceUsd: row.priceUsd,
+      author: identity?.verified
+        ? { verified: true, handle: `@${identity.twitterHandle}` }
+        : {
+            verified: false,
+            note: "Your listing shows as UNCLAIMED. Link your X handle so it shows @you as the author.",
+            howToClaim: [
+              `POST ${base}/api/identity/claim (SIWX-signed) with {"handle": "yourhandle"} — returns a one-time code.`,
+              `Tweet the code from @yourhandle, then POST ${base}/api/identity/verify (SIWX-signed) with {"tweetUrl": "..."}.`,
+              "Verifying stamps @you on this and all your listings.",
+            ],
+          },
       note:
         Number(row.priceUsd) > 0
-          ? `Buyers pay $${Number(row.priceUsd).toFixed(2)} directly to ${row.authorWallet} via POST /api/download.`
-          : "Listed as free — anyone can install it via GET /api/statuslines/" +
-            row.slug,
+          ? `Live at ${base}/statuslines/${row.slug}. Buyers pay $${Number(row.priceUsd).toFixed(2)} directly to ${row.authorWallet} via POST /api/download.`
+          : `Live at ${base}/statuslines/${row.slug} — free to install.`,
     };
   });
 

@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Eye } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /** Prompt that sends the user's current status line into the publish flow. */
 export function ShareButton({ base }: { base: string }) {
@@ -10,27 +17,43 @@ export function ShareButton({ base }: { base: string }) {
   const command = `Use ${base}/skill.md to share my current Claude Code status line.`;
 
   return (
-    <div className="flex max-w-xl flex-col gap-3">
-      <p className="font-mono text-sm font-medium">Share my status line:</p>
-      <button
+    <div className="flex items-center gap-3">
+      <Button
         type="button"
+        size="xl"
+        className="w-52 rounded-[6px]"
+        aria-label="Copy prompt to share my status line"
         onClick={() => {
           navigator.clipboard.writeText(command);
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         }}
-        className="group bg-muted/50 hover:bg-muted flex cursor-pointer items-center gap-3 border px-4 py-3.5 text-left font-mono text-sm transition-colors"
       >
-        <span className="text-muted-foreground shrink-0">&gt;</span>
-        <span className="no-scrollbar flex-1 overflow-x-auto whitespace-nowrap">
-          {command}
-        </span>
         {copied ? (
-          <Check className="text-primary size-4 shrink-0" />
+          <Check className="size-4" />
         ) : (
-          <Copy className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-colors" />
+          <Copy className="size-4" />
         )}
-      </button>
+        {copied ? "Paste Into Claude Code" : "Share Your Status Line"}
+      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground cursor-pointer p-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+            aria-label="View sharing prompt"
+          >
+            <Eye className="size-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          align="start"
+          className="max-w-sm font-mono leading-5"
+        >
+          {command}
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 }
