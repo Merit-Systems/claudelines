@@ -36,6 +36,13 @@
       "when": 1783712258816,
       "tag": "0004_agentcash-banner",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783715846090,
+      "tag": "0005_mission-control",
+      "breakpoints": true
     }
   ]
 }

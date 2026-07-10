@@ -39,6 +39,35 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     },
   },
   {
+    slug: "mission-control",
+    name: "Mission Control",
+    description:
+      "Two lines of full instrumentation: model, directory and branch up top; live context bar, session cost, and rate-limit gauges below.",
+    author: "statuslines.dev",
+    priceUsd: "0",
+    tags: ["multi-line", "context", "powerline"],
+    featured: true,
+    installs: 0,
+    spec: {
+      version: 1,
+      powerline: true,
+      segments: [
+        { text: "{model}", fg: "#0c0a09", bg: "#fafaf9", bold: true },
+        { text: "{dir}{gitDirty}", fg: "#e7e5e4", bg: "#44403c" },
+        { text: " {gitBranch}", fg: "#a8a29e", bg: "#292524", when: "gitBranch" },
+        { text: "{contextBar}", fg: "#4ade80", bg: "#0c0a09", newline: true },
+        { text: "{contextPct} used", fg: "#86efac", bg: "#0c0a09", dim: true },
+        { text: "{cost} · {duration}", fg: "#fbbf24", bg: "#0c0a09" },
+        {
+          text: "5h {limit5h} · 7d {limit7d}",
+          fg: "#78716c",
+          bg: "#0c0a09",
+          when: "limit5h",
+        },
+      ],
+    },
+  },
+  {
     slug: "merit-line",
     name: "Merit Line",
     description:
