@@ -15,10 +15,10 @@ import { cn } from "@/lib/utils";
  * toggle can re-theme server-rendered banners without re-rendering. */
 export const TERM_THEMES = {
   dark: {
-    "--term-bg": "#0d0d0d",
+    "--term-bg": "#1a1a1a",
     "--term-fg": "#d4d4d4",
     "--term-muted": "#525252",
-    "--term-border": "#2e2e2e",
+    "--term-border": "#333333",
     "--term-dim": "#3f3f3f",
     "--term-cursor": "#a3a3a3",
   },

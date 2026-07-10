@@ -123,7 +123,7 @@ export default async function StatuslinePage({ params }: Props) {
           <Separator />
           <section className="flex flex-col gap-3">
             <h2 className="text-sm font-medium">Across sessions</h2>
-            <div className="flex flex-col gap-2.5 rounded-xl border border-white/10 bg-[#0d0d0d] px-4 py-4">
+            <div className="flex flex-col gap-2.5 rounded-xl border border-white/10 bg-[#1a1a1a] px-4 py-4">
               {MOCK_SESSIONS.map((s) => (
                 <div key={s.label} className="flex flex-col gap-1">
                   <span className="font-mono text-[10px] text-[#525252]">

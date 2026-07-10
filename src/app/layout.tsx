@@ -32,14 +32,6 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* apply the stored theme before paint to avoid a flash */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem("statuslines-preview-theme")!=="light")document.documentElement.classList.add("dark")}catch(e){}`,
-          }}
-        />
-      </head>
       <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
         <PreviewThemeProvider>
         <div className="flex min-h-svh flex-col">
