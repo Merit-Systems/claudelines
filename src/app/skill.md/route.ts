@@ -2,9 +2,6 @@ import { siteUrl } from "@/lib/site";
 
 export function GET() {
   const base = siteUrl();
-  // Local http instances need agentcash's dev mode; keep the served commands
-  // copy-pasteable for whichever instance is serving this file.
-  const dev = base.startsWith("http://localhost") ? " --dev" : "";
   const md = `---
 name: claudelines
 description: Browse, install, publish, and sell Claude Code statuslines via ${base}. Use when the user wants a new statusline, wants to share or sell their current statusline, wants to claim their listings or connect their X handle, asks about the bar at the bottom of Claude Code, or mentions claudelines.com.
@@ -62,7 +59,7 @@ rejects. Follow these steps exactly:
 jq -n --rawfile s <script-path> --rawfile p preview.ansi '{
   slug: "my-statusline", name: "My Statusline", description: "…",
   priceUsd: "0", tags: ["…"], script: $s, previewAnsi: $p }' > payload.json
-agentcash fetch${dev} ${base}/api/register -m POST \\
+npx agentcash@latest fetch ${base}/api/register -m POST \\
   -H 'Content-Type: application/json' -b "$(cat payload.json)"
 \`\`\`
 

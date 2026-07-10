@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ClaudeMark } from "@/components/claude-mark";
+import { ClaudeCodeMark } from "@/components/claude-code-mark";
 import { CopyBlock } from "@/components/copy-block";
 import {
   Tooltip,
@@ -178,7 +178,7 @@ export function StatuslineEntry({
                   </>
                 ) : (
                   <>
-                    <ClaudeMark className="size-3 shrink-0" />
+                    <ClaudeCodeMark className="size-3 shrink-0" />
                     Add
                   </>
                 )}
@@ -205,23 +205,40 @@ export function StatuslineEntry({
         </div>
       </div>
       {/* click anywhere on the black area to preview it inside Claude Code */}
-      <button
-        type="button"
-        onClick={() => setCc((v) => !v)}
-        title={cc ? "Back to the bare statusline" : "Preview in Claude Code"}
-        className="w-full cursor-pointer border text-left"
-        style={{
-          ...(TERM_THEMES[theme] as React.CSSProperties),
-          background: "var(--term-bg)",
-          borderColor: "var(--term-border)",
-        }}
+      <div
+        className="group relative"
+        style={TERM_THEMES[theme] as React.CSSProperties}
       >
-        {cc ? (
-          <CcFrame>{children}</CcFrame>
-        ) : (
-          <div className="px-3 py-2.5">{children}</div>
+        <button
+          type="button"
+          onClick={() => setCc((v) => !v)}
+          title={cc ? "Back to the bare statusline" : "Preview in Claude Code"}
+          className="w-full cursor-pointer border text-left"
+          style={{
+            background: "var(--term-bg)",
+            borderColor: "var(--term-border)",
+          }}
+        >
+          {cc ? (
+            <CcFrame>{children}</CcFrame>
+          ) : (
+            <div className="px-3 py-2.5">{children}</div>
+          )}
+        </button>
+        {!cc && (
+          <span
+            className="pointer-events-none absolute top-full right-0 z-10 -translate-y-px flex items-center gap-1 border border-t-0 px-2 py-1 font-mono text-[10px] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+            style={{
+              color: "var(--term-muted)",
+              background: "var(--term-bg)",
+              borderColor: "var(--term-border)",
+            }}
+          >
+            <ClaudeCodeMark className="size-3" />
+            Preview
+          </span>
         )}
-      </button>
+      </div>
       {manualOpen && (
         <div className="flex flex-col gap-3 rounded-lg border p-3">
           <p className="text-muted-foreground text-xs font-medium">

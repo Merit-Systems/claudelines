@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { StatuslineEntry } from "@/components/add-to-claude";
-import { ClaudeMark } from "@/components/claude-mark";
+import { ClaudeCodeMark } from "@/components/claude-code-mark";
 import { ShareButton } from "@/components/share-button";
 import { ListingPreview } from "@/components/terminal-preview";
 import {
@@ -63,7 +63,7 @@ export default async function HomePage({
           <h1 className="font-mono text-4xl font-semibold tracking-tight sm:text-5xl">
             Share and explore status lines for{" "}
             <span className="text-primary">Claude Code</span>
-            <ClaudeMark className="ml-2 inline-block size-[0.8em] align-[-0.08em]" />
+            <ClaudeCodeMark className="ml-2 inline-block size-[0.8em] align-[-0.08em]" />
           </h1>
           <p className="text-muted-foreground text-sm leading-6">
             ClaudeLines is a registry of customizable bars that sit at the

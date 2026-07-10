@@ -1,5 +1,5 @@
 import { parseAnsi, type StyledRun } from "@/lib/statusline/ansi";
-import { ClaudeMark } from "@/components/claude-mark";
+import { ClaudeCodeMark } from "@/components/claude-code-mark";
 import { cn } from "@/lib/utils";
 
 /**
@@ -92,7 +92,7 @@ export function CcFrame({ children }: { children: React.ReactNode }) {
         className="flex items-center gap-1.5"
         style={{ color: "var(--term-muted)" }}
       >
-        <ClaudeMark /> Claude Code
+        <ClaudeCodeMark /> Claude Code
       </div>
       <div
         className="flex items-center gap-2 rounded-[6px] border px-3 py-2"
