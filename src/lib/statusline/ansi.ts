@@ -87,7 +87,15 @@ export function parseAnsi(raw: string): StyledRun[][] {
         const text = part
           .replace(/\x1b[^a-zA-Z]*[a-zA-Z]/g, "")
           .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
-        if (text) runs.push({ text, ...state });
+        if (!text) continue;
+        // Long whitespace runs are almost always COLUMNS-padding from a
+        // right-justified capture; make them flexible so the layout
+        // re-justifies to the preview's real width instead of clipping.
+        if (/^\s{4,}$/.test(text)) {
+          runs.push({ text: "", spacer: true });
+        } else {
+          runs.push({ text, ...state });
+        }
       }
     }
     if (runs.length) lines.push(runs);

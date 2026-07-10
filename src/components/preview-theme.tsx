@@ -38,6 +38,11 @@ export function PreviewThemeProvider({
     }
   }, []);
 
+  // The toggle drives the whole app: previews AND the site theme flip together.
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
+
   const setTheme = (t: TermTheme) => {
     setThemeState(t);
     localStorage.setItem(STORAGE_KEY, t);

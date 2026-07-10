@@ -34,6 +34,9 @@ export const TERM_THEMES = {
 export type TermTheme = keyof typeof TERM_THEMES;
 
 function Run({ run }: { run: StyledRun }) {
+  if (run.spacer) {
+    return <span className="min-w-[1ch] flex-1" aria-hidden />;
+  }
   if (run.arrow) {
     return (
       <span
@@ -145,7 +148,7 @@ export function CcFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2 px-4 pt-3 pb-3 font-mono text-[13px]">
       <div style={{ color: "var(--term-muted)" }}>
-        <span style={{ color: "#4ade80" }}>●</span> Refactored the auth
+        <span style={{ color: "#d97757" }}>✻</span> Refactored the auth
         middleware and updated 3 tests.
       </div>
       <div

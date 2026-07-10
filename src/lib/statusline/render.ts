@@ -20,6 +20,8 @@ export interface StyledRun {
   italic?: boolean;
   /** Marks a powerline arrow between segments. */
   arrow?: { from?: string; to?: string };
+  /** Flexible gap (from captured right-justified padding) — grows to fill. */
+  spacer?: boolean;
 }
 
 function substitute(template: string, vars: StatuslineVars): string {
