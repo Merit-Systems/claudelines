@@ -47,15 +47,19 @@ export default function DocsPage() {
           A Claude Code statusline is normally an arbitrary command that runs
           on your machine every second — which makes &ldquo;install this cool
           statusline&rdquo; a supply-chain problem. This registry removes the
-          problem instead of asking you to trust it: a statusline here is a
-          JSON <em>spec</em> (segments, colors, variables), and one
-          open-source renderer interprets specs locally.
+          problem instead of asking you to trust it — with two tiers. A{" "}
+          <strong>data-only spec</strong> is JSON (segments, colors, variables)
+          interpreted by one open-source renderer: nothing to trust, nothing to
+          review. A <strong>script</strong> is an existing statusline uploaded
+          as-is: it runs on your machine, so every script is security-audited
+          by Opus at registration (the $0.50 fee pays for it), labeled with its
+          capabilities, and installed behind a read-it-first gate.
         </p>
         <ul className="text-muted-foreground flex flex-col gap-2 text-sm">
           {[
             "Specs cannot contain code, shell, or escape sequences — the schema rejects control characters and unknown variables, both at registration and again locally at render time.",
             "The renderer is a single dependency-free file (~250 lines) you install once and can read in one sitting. It never evaluates spec content.",
-            "It runs exactly one subprocess, hardcoded: git branch --show-current (no shell, 500 ms timeout) — and only when a spec uses {gitBranch}.",
+            "It runs at most two subprocesses, both hardcoded git commands (no shell, 500 ms timeouts): branch --show-current and status --porcelain — and only when a spec uses {gitBranch} or {gitDirty}.",
             "Installing a new statusline just writes a JSON file. Nothing new executes.",
           ].map((t) => (
             <li key={t} className="flex gap-2">
@@ -84,14 +88,16 @@ export default function DocsPage() {
           <h2 className="text-lg font-medium">The spec format</h2>
         </div>
         <p className="text-muted-foreground text-sm">
-          Up to 12 segments, each with template text, optional{" "}
+          Up to 16 segments, each with template text, optional{" "}
           <span className="font-mono text-xs">#rrggbb</span> colors and
           bold/dim/italic flags, joined plainly or as a powerline. A{" "}
           <span className="font-mono text-xs">when</span> field hides a segment
-          if its variable is empty.
+          if its variable is empty, and{" "}
+          <span className="font-mono text-xs">newline</span> starts a second
+          row — Claude Code supports multi-line statuslines.
         </p>
         <CopyBlock text={JSON.stringify(EXAMPLE_SPEC, null, 2)} />
-        <TerminalPreview spec={EXAMPLE_SPEC} prompt={false} />
+        <TerminalPreview spec={EXAMPLE_SPEC} />
         <div className="flex flex-col gap-2">
           <h3 className="text-sm font-medium">Variables</h3>
           <div className="grid gap-x-6 gap-y-1.5 rounded-xl border p-4 sm:grid-cols-2">
@@ -163,8 +169,12 @@ export default function DocsPage() {
           <h2 className="text-lg font-medium">Publishing &amp; selling</h2>
         </div>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Registration is agent-native: publishing costs a flat{" "}
-          <span className="text-foreground font-medium">$0.01</span> over{" "}
+          Registration is agent-native and priced by tier:{" "}
+          <span className="text-foreground font-medium">$0.01</span> for
+          data-only specs,{" "}
+          <span className="text-foreground font-medium">$0.50</span> for
+          scripts (the fee funds the Opus security audit — rejected scripts
+          aren\u2019t listed and the fee bought the audit). Both settle over{" "}
           <a href="https://agentcash.dev" className="underline underline-offset-2">
             x402/MPP
           </a>

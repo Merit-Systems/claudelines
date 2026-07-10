@@ -1,11 +1,13 @@
-import { renderRuns, type StyledRun } from "@/lib/statusline/render";
+import { renderLines, type StyledRun } from "@/lib/statusline/render";
+import { parseAnsi } from "@/lib/statusline/ansi";
 import type { StatuslineSpec, StatuslineVars } from "@/lib/statusline/spec";
 import { DEFAULT_MOCK } from "@/lib/statusline/mock";
 import { cn } from "@/lib/utils";
 
 /**
- * Terminal-chrome preview. Always dark (terminals are dark), regardless of
+ * Terminal-emulator preview. Always dark (terminals are dark), regardless of
  * site theme. Powerline arrows are CSS triangles so no patched font is needed.
+ * Scroll is possible but scrollbars are hidden — like a real terminal.
  */
 
 const TERM_BG = "#0d0d0d";
@@ -46,6 +48,30 @@ function Run({ run }: { run: StyledRun }) {
   );
 }
 
+function RunsView({
+  lines,
+  className,
+}: {
+  lines: StyledRun[][];
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex flex-col", className)}>
+      {lines.map((runs, li) => (
+        <div
+          key={li}
+          className="no-scrollbar flex items-center overflow-x-auto font-mono text-[13px]"
+        >
+          {runs.map((run, i) => (
+            <Run key={i} run={run} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Bare statusline rows (multi-line aware) rendered live from a spec. */
 export function StatuslineRow({
   spec,
   vars = DEFAULT_MOCK,
@@ -55,30 +81,54 @@ export function StatuslineRow({
   vars?: StatuslineVars;
   className?: string;
 }) {
-  const runs = renderRuns(spec, vars);
+  return <RunsView lines={renderLines(spec, vars)} className={className} />;
+}
+
+/** Captured-sample preview for script listings (SGR colors only; inert). */
+export function AnsiRow({
+  ansi,
+  className,
+}: {
+  ansi: string;
+  className?: string;
+}) {
+  return <RunsView lines={parseAnsi(ansi)} className={className} />;
+}
+
+/** Renders whichever preview a listing supports. */
+export function ListingPreview({
+  spec,
+  previewAnsi,
+  vars,
+  className,
+}: {
+  spec?: StatuslineSpec | null;
+  previewAnsi?: string | null;
+  vars?: StatuslineVars;
+  className?: string;
+}) {
+  if (spec) return <StatuslineRow spec={spec} vars={vars} className={className} />;
+  if (previewAnsi) return <AnsiRow ansi={previewAnsi} className={className} />;
   return (
-    <div
-      className={cn(
-        "flex items-center overflow-x-auto font-mono text-[13px]",
-        className,
-      )}
-    >
-      {runs.map((run, i) => (
-        <Run key={i} run={run} />
-      ))}
+    <div className={cn("font-mono text-[13px] opacity-50", className)}>
+      (no preview)
     </div>
   );
 }
 
+/**
+ * Full emulator frame mimicking Claude Code's actual layout: transcript,
+ * input box, then the statusline row beneath it — where it really renders.
+ */
 export function TerminalPreview({
   spec,
+  previewAnsi,
   vars = DEFAULT_MOCK,
-  prompt = true,
   className,
 }: {
-  spec: StatuslineSpec;
+  spec?: StatuslineSpec | null;
+  previewAnsi?: string | null;
   vars?: StatuslineVars;
-  prompt?: boolean;
   className?: string;
 }) {
   return (
@@ -89,21 +139,27 @@ export function TerminalPreview({
       )}
       style={{ background: TERM_BG }}
     >
-      <div className="flex items-center gap-1.5 border-b border-white/5 px-3 py-2.5">
+      <div className="flex items-center gap-1.5 px-3.5 py-2.5">
         <span className="size-2.5 rounded-full bg-[#ff5f57]" />
         <span className="size-2.5 rounded-full bg-[#febc2e]" />
         <span className="size-2.5 rounded-full bg-[#28c840]" />
       </div>
-      <div className="flex flex-col gap-1.5 px-4 py-4">
-        {prompt && (
-          <div className="font-mono text-[13px] leading-relaxed">
-            <span style={{ color: "#525252" }}>&gt; </span>
-            <span style={{ color: "#a3a3a3" }}>
-              claude — fix the flaky auth test
-            </span>
-          </div>
-        )}
-        <StatuslineRow spec={spec} vars={vars} />
+      <div className="flex flex-col gap-2 px-4 pt-3 pb-4 font-mono text-[13px]">
+        <div style={{ color: "#525252" }}>
+          <span style={{ color: "#4ade80" }}>●</span> Refactored the auth
+          middleware and updated 3 tests.
+        </div>
+        <div
+          className="flex items-center gap-2 rounded-md border px-3 py-2"
+          style={{ borderColor: "#2e2e2e" }}
+        >
+          <span style={{ color: "#737373" }}>&gt;</span>
+          <span
+            className="inline-block h-[1.1em] w-[0.55em]"
+            style={{ background: "#a3a3a3" }}
+          />
+        </div>
+        <ListingPreview spec={spec} previewAnsi={previewAnsi} vars={vars} />
       </div>
     </div>
   );

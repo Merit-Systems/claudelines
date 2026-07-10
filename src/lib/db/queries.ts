@@ -59,7 +59,14 @@ export async function createStatusline(input: {
   author: string;
   authorWallet: string | null;
   priceUsd: string;
-  spec: StatuslineSpec;
+  kind: "spec" | "script";
+  spec: StatuslineSpec | null;
+  script: string | null;
+  previewAnsi: string | null;
+  capabilities: string[];
+  auditVerdict: string | null;
+  auditSummary: string | null;
+  auditModel: string | null;
   tags: string[];
   registeredBy: string | null;
 }): Promise<StatuslineRow> {
@@ -72,7 +79,14 @@ export async function createStatusline(input: {
       author: input.author,
       authorWallet: input.authorWallet,
       priceUsd: input.priceUsd,
+      kind: input.kind,
       spec: input.spec,
+      script: input.script,
+      previewAnsi: input.previewAnsi,
+      capabilities: input.capabilities,
+      auditVerdict: input.auditVerdict,
+      auditSummary: input.auditSummary,
+      auditModel: input.auditModel,
       tags: input.tags,
     })
     .returning();

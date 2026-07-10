@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Download, Bot } from "lucide-react";
+import { Download, FileCode2, ShieldCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CopyBlock } from "@/components/copy-block";
+import { AddToClaude } from "@/components/add-to-claude";
 import { TerminalPreview, StatuslineRow } from "@/components/terminal-preview";
 import { getStatusline } from "@/lib/db/queries";
 import { MOCK_SESSIONS } from "@/lib/statusline/mock";
@@ -30,34 +31,24 @@ export default async function StatuslinePage({ params }: Props) {
   if (!row) notFound();
 
   const free = Number(row.priceUsd) === 0;
-  const base = siteUrl();
-
-  const freeInstall = [
-    `mkdir -p ~/.claude/statuslines`,
-    `curl -fsSL ${base}/render.mjs -o ~/.claude/statuslines/render.mjs`,
-    `curl -fsSL ${base}/api/statuslines/${row.slug}/spec -o ~/.claude/statuslines/${row.slug}.json`,
-  ].join("\n");
-
-  const settingsSnippet = JSON.stringify(
-    {
-      statusLine: {
-        type: "command",
-        command: `node ~/.claude/statuslines/render.mjs ~/.claude/statuslines/${row.slug}.json`,
-      },
-    },
-    null,
-    2,
-  );
-
-  const agentPrompt = free
-    ? `Install the "${row.name}" statusline from ${base}/statuslines/${row.slug} — fetch ${base}/llms.txt and follow the install instructions. It's a data-only spec: download the spec JSON and the auditable renderer, never run registry code.`
-    : `Buy and install the "${row.name}" statusline (${formatUsd(row.priceUsd)}) from ${base} — fetch ${base}/llms.txt, then POST /api/download with {"slug": "${row.slug}"} paying via x402/MPP, and follow the returned install instructions.`;
+  const isScript = row.kind === "script";
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-medium tracking-tight">{row.name}</h1>
+          {isScript ? (
+            <Badge variant="outline">
+              <FileCode2 />
+              script · audited
+            </Badge>
+          ) : (
+            <Badge variant="success">
+              <ShieldCheck />
+              data-only
+            </Badge>
+          )}
           <Badge variant={free ? "secondary" : "success"}>
             {formatUsd(row.priceUsd)}
           </Badge>
@@ -77,72 +68,80 @@ export default async function StatuslinePage({ params }: Props) {
         </div>
       </div>
 
-      <TerminalPreview spec={row.spec} />
+      <TerminalPreview spec={row.spec} previewAnsi={row.previewAnsi} />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">Across sessions</h2>
-        <div className="flex flex-col gap-2.5 rounded-xl border border-white/10 bg-[#0d0d0d] px-4 py-4">
-          {MOCK_SESSIONS.map((s) => (
-            <div key={s.label} className="flex flex-col gap-1">
-              <span className="font-mono text-[10px] text-[#525252]">
-                {s.label}
+      {isScript && row.auditSummary && (
+        <div className="flex flex-col gap-2 rounded-xl border p-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <ShieldCheck className="text-primary size-4" />
+            Security audit
+            {row.auditModel && (
+              <span className="text-muted-foreground text-xs font-normal">
+                by {row.auditModel}
+                {row.auditVerdict === "caution" && " · verdict: caution"}
               </span>
-              <StatuslineRow spec={row.spec} vars={s.vars} />
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {row.auditSummary}
+          </p>
+          {row.capabilities.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {row.capabilities.map((c) => (
+                <Badge key={c} variant="outline">
+                  {c}
+                </Badge>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
-
-      <Separator />
-
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-medium">Install</h2>
-          <p className="text-muted-foreground text-sm">
-            No <span className="font-mono text-xs">curl | bash</span>. The spec
-            is inert JSON; the renderer is one auditable file you install once.
+          )}
+          <p className="text-muted-foreground text-xs">
+            Audits are advisory. This script runs on your machine — read it
+            before installing.
           </p>
         </div>
+      )}
 
-        {free ? (
-          <>
-            <CopyBlock
-              label="1 — Download the renderer (once) and the spec"
-              text={freeInstall}
-            />
-            <CopyBlock
-              label="2 — Point Claude Code at it (~/.claude/settings.json)"
-              text={settingsSnippet}
-            />
-          </>
-        ) : (
-          <div className="flex flex-col gap-2 rounded-xl border p-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Bot className="text-primary size-4" />
-              Purchase via your agent
+      <AddToClaude
+        className="items-start"
+        slug={row.slug}
+        name={row.name}
+        kind={row.kind}
+        priceUsd={row.priceUsd}
+        base={siteUrl()}
+      />
+
+      {row.spec && (
+        <>
+          <Separator />
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-medium">Across sessions</h2>
+            <div className="flex flex-col gap-2.5 rounded-xl border border-white/10 bg-[#0d0d0d] px-4 py-4">
+              {MOCK_SESSIONS.map((s) => (
+                <div key={s.label} className="flex flex-col gap-1">
+                  <span className="font-mono text-[10px] text-[#525252]">
+                    {s.label}
+                  </span>
+                  <StatuslineRow spec={row.spec!} vars={s.vars} />
+                </div>
+              ))}
             </div>
-            <p className="text-muted-foreground text-sm">
-              This statusline costs {formatUsd(row.priceUsd)}, paid directly to
-              the creator&apos;s wallet over x402/MPP. Any agent with{" "}
-              <a
-                href="https://agentcash.dev"
-                className="underline underline-offset-2"
-              >
-                agentcash
-              </a>{" "}
-              (or another x402 client) can buy it:
-            </p>
-            <CopyBlock text={`POST ${base}/api/download\n{"slug": "${row.slug}"}`} />
-          </div>
-        )}
+          </section>
+        </>
+      )}
 
-        <CopyBlock label="Or just ask your agent" text={agentPrompt} />
-      </section>
-
-      {free && (
+      {free && row.spec && (
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium">The spec (this is all of it)</h2>
           <CopyBlock text={JSON.stringify(row.spec, null, 2)} />
+        </section>
+      )}
+
+      {free && isScript && row.script && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-medium">
+            The script — read it before you run it
+          </h2>
+          <CopyBlock text={row.script} />
         </section>
       )}
     </div>

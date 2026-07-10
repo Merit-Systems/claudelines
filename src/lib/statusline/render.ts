@@ -5,9 +5,10 @@ import type {
 } from "./spec";
 
 /**
- * Resolves a spec + variable values into styled runs. This mirrors exactly
- * what the installable renderer (public/render.mjs) does with ANSI codes,
- * so web previews are faithful to the terminal.
+ * Resolves a spec + variable values into styled runs, grouped into lines
+ * (Claude Code supports multi-line statuslines via segment.newline). This
+ * mirrors exactly what the installable renderer (public/render.mjs) does with
+ * ANSI codes, so web previews are faithful to the terminal.
  */
 
 export interface StyledRun {
@@ -22,39 +23,39 @@ export interface StyledRun {
 }
 
 function substitute(template: string, vars: StatuslineVars): string {
-  return template.replace(/\{([a-zA-Z]+)\}/g, (_, name: string) =>
+  return template.replace(/\{([a-zA-Z0-9]+)\}/g, (_, name: string) =>
     name in vars ? vars[name as keyof StatuslineVars] : "",
   );
 }
 
-function visibleSegments(
+function visibleLines(
   spec: StatuslineSpec,
   vars: StatuslineVars,
-): { seg: StatuslineSegment; text: string }[] {
-  const out: { seg: StatuslineSegment; text: string }[] = [];
+): { seg: StatuslineSegment; text: string }[][] {
+  const lines: { seg: StatuslineSegment; text: string }[][] = [[]];
   for (const seg of spec.segments) {
+    if (seg.newline && lines[lines.length - 1].length > 0) lines.push([]);
     if (seg.when && !vars[seg.when]) continue;
     const text = substitute(seg.text, vars);
     if (text.length === 0) continue;
-    out.push({ seg, text });
+    lines[lines.length - 1].push({ seg, text });
   }
-  return out;
+  return lines.filter((l) => l.length > 0);
 }
 
-export function renderRuns(
+function renderLine(
+  line: { seg: StatuslineSegment; text: string }[],
   spec: StatuslineSpec,
-  vars: StatuslineVars,
 ): StyledRun[] {
-  const visible = visibleSegments(spec, vars);
   const runs: StyledRun[] = [];
   const join = spec.join ?? "  ";
 
-  visible.forEach(({ seg, text }, i) => {
+  line.forEach(({ seg, text }, i) => {
     if (spec.powerline) {
       if (i > 0) {
         runs.push({
-          text: "",
-          arrow: { from: visible[i - 1].seg.bg, to: seg.bg },
+          text: "",
+          arrow: { from: line[i - 1].seg.bg, to: seg.bg },
         });
       }
       runs.push({
@@ -78,19 +79,26 @@ export function renderRuns(
     }
   });
 
-  if (spec.powerline && visible.length > 0) {
-    runs.push({
-      text: "",
-      arrow: { from: visible[visible.length - 1].seg.bg },
-    });
+  if (spec.powerline && line.length > 0) {
+    runs.push({ text: "", arrow: { from: line[line.length - 1].seg.bg } });
   }
-
   return runs;
 }
 
+/** Lines of styled runs — one entry per visual statusline row. */
+export function renderLines(
+  spec: StatuslineSpec,
+  vars: StatuslineVars,
+): StyledRun[][] {
+  return visibleLines(spec, vars).map((line) => renderLine(line, spec));
+}
+
 /** Plain-text projection, useful for length checks and alt text. */
-export function renderPlain(spec: StatuslineSpec, vars: StatuslineVars): string {
-  return renderRuns(spec, vars)
-    .map((r) => (r.arrow ? "" : r.text))
-    .join("");
+export function renderPlain(
+  spec: StatuslineSpec,
+  vars: StatuslineVars,
+): string {
+  return renderLines(spec, vars)
+    .map((line) => line.map((r) => (r.arrow ? "" : r.text)).join(""))
+    .join("\n");
 }

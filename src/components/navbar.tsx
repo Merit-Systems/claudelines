@@ -3,12 +3,6 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 
-const links = [
-  { href: "/statuslines", label: "Browse" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/docs", label: "Docs" },
-];
-
 export function Navbar() {
   return (
     <header className="sticky top-0 z-20 border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -20,20 +14,17 @@ export function Navbar() {
               statuslines<span className="text-muted-foreground">.dev</span>
             </p>
           </Link>
-          <nav className="hidden items-center gap-4 sm:flex">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-              >
-                {l.label}
-              </Link>
-            ))}
+          <nav className="flex items-center gap-4">
+            <Link
+              href="/docs"
+              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+            >
+              Docs
+            </Link>
           </nav>
         </div>
-        <Link href="/docs#sell">
-          <Button size="sm">Sell yours</Button>
+        <Link href="/">
+          <Button size="sm">Submit yours</Button>
         </Link>
       </div>
     </header>

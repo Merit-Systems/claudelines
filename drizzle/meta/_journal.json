@@ -15,6 +15,27 @@
       "when": 1783710281412,
       "tag": "0001_seed-catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783711176175,
+      "tag": "0002_refresh-seeds",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783712074238,
+      "tag": "0003_script-tier",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783712258816,
+      "tag": "0004_agentcash-banner",
+      "breakpoints": true
     }
   ]
 }

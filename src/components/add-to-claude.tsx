@@ -1,0 +1,103 @@
+"use client";
+
+import { useState } from "react";
+import { ChevronDown, Plus } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { GatePanel, type GateBlock } from "@/components/gate-panel";
+import { cn } from "@/lib/utils";
+
+/** Per-statusline "Add to your Claude" — expands into the two-gate panel. */
+export function AddToClaude({
+  slug,
+  name,
+  kind,
+  priceUsd,
+  base,
+  className,
+}: {
+  slug: string;
+  name: string;
+  kind: "spec" | "script";
+  priceUsd: string;
+  base: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const free = Number(priceUsd) === 0;
+  const price = `$${Number(priceUsd).toFixed(2)}`;
+  const script = kind === "script";
+
+  const command = script
+    ? `~/.claude/statuslines/${slug}`
+    : `node ~/.claude/statuslines/render.mjs ~/.claude/statuslines/${slug}.json`;
+  const settings = JSON.stringify(
+    { statusLine: { type: "command", command } },
+    null,
+    2,
+  );
+
+  const agent: GateBlock[] = [
+    {
+      label: "Paste into Claude Code",
+      text: script
+        ? free
+          ? `Install the "${name}" statusline script from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt for instructions. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does, and only install after I approve.`
+          : `Buy and install the "${name}" statusline script (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP. IMPORTANT: it runs on my machine — show me the script with your review before installing.`
+        : free
+          ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt and follow the install instructions — it's a data-only JSON spec plus one auditable renderer; never run registry code.`
+          : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP, then follow the returned install instructions.`,
+    },
+  ];
+
+  const manual: GateBlock[] = script
+    ? [
+        {
+          label: free
+            ? "Download, READ IT, then make it executable"
+            : `Buy with the agentcash CLI (${price}, paid to the creator) — then READ IT`,
+          text: free
+            ? `mkdir -p ~/.claude/statuslines\ncurl -fsSL ${base}/api/statuslines/${slug}/script -o ~/.claude/statuslines/${slug}\n$EDITOR ~/.claude/statuslines/${slug}   # review before trusting it\nchmod +x ~/.claude/statuslines/${slug}`
+            : `mkdir -p ~/.claude/statuslines\nnpx agentcash@latest fetch ${base}/api/download -m POST -b '{"slug":"${slug}"}' -p x402 | jq -r .script > ~/.claude/statuslines/${slug}\n$EDITOR ~/.claude/statuslines/${slug}   # review before trusting it\nchmod +x ~/.claude/statuslines/${slug}`,
+        },
+        { label: "Merge into ~/.claude/settings.json", text: settings },
+      ]
+    : free
+      ? [
+          {
+            label: "Download the renderer (once) and the spec",
+            text: [
+              "mkdir -p ~/.claude/statuslines",
+              `curl -fsSL ${base}/render.mjs -o ~/.claude/statuslines/render.mjs`,
+              `curl -fsSL ${base}/api/statuslines/${slug}/spec -o ~/.claude/statuslines/${slug}.json`,
+            ].join("\n"),
+          },
+          { label: "Merge into ~/.claude/settings.json", text: settings },
+        ]
+      : [
+          {
+            label: `Buy with the agentcash CLI (${price}, paid to the creator)`,
+            text: `mkdir -p ~/.claude/statuslines\ncurl -fsSL ${base}/render.mjs -o ~/.claude/statuslines/render.mjs\nnpx agentcash@latest fetch ${base}/api/download -m POST -b '{"slug":"${slug}"}' -p x402 | jq .spec > ~/.claude/statuslines/${slug}.json`,
+          },
+          { label: "Merge into ~/.claude/settings.json", text: settings },
+        ];
+
+  return (
+    <div className={cn("flex flex-col gap-3", className)}>
+      <Button
+        variant={open ? "secondary" : "outline"}
+        size="sm"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Plus
+          className={cn("size-3.5 transition-transform", open && "rotate-45")}
+        />
+        Add to your Claude
+        <ChevronDown
+          className={cn("size-3 transition-transform", open && "rotate-180")}
+        />
+      </Button>
+      {open && <GatePanel agent={agent} manual={manual} />}
+    </div>
+  );
+}

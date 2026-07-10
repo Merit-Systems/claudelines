@@ -9,16 +9,27 @@ import { z } from "zod";
  * registry downloads a JSON file; nothing from the registry is ever executed.
  */
 
-/** Variables the renderer resolves from Claude Code's statusline stdin JSON. */
+/**
+ * Variables the renderer resolves from Claude Code's statusline stdin JSON
+ * (https://code.claude.com/docs/en/statusline), plus git state it derives
+ * itself via hardcoded subprocesses.
+ */
 export const STATUSLINE_VARIABLES = {
   model: "Model display name (e.g. “Opus 4.8”)",
   dir: "Basename of the current workspace directory",
   cwd: "Current workspace directory, ~-abbreviated",
   gitBranch: "Current git branch, empty outside a repo",
+  gitDirty: "“*” when the worktree has uncommitted changes",
   cost: "Session cost in USD (e.g. “$1.42”)",
-  duration: "Wall-clock session duration (e.g. “32m”)",
+  duration: "Wall-clock session duration (e.g. “38m”)",
+  apiDuration: "Time spent waiting on the API (e.g. “12m”)",
   linesAdded: "Lines added this session",
   linesRemoved: "Lines removed this session",
+  contextPct: "Context window used, e.g. “37%”",
+  contextLeft: "Context window remaining, e.g. “63%”",
+  contextBar: "10-cell context usage bar: ▓▓▓▓░░░░░░",
+  limit5h: "5-hour rate limit used, e.g. “24%” (subscribers)",
+  limit7d: "7-day rate limit used, e.g. “41%” (subscribers)",
   version: "Claude Code version",
   outputStyle: "Active output style name",
   time: "Local time, HH:MM",
@@ -36,7 +47,6 @@ const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
  * Printable text only: no control characters, so a spec can never smuggle
  * ANSI escapes, OSC sequences, or terminal exploits past the renderer.
  */
- 
 const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/;
 
 const templateString = (maxLength: number) =>
@@ -47,7 +57,9 @@ const templateString = (maxLength: number) =>
       message: "Control characters are not allowed",
     });
 
-const variableName = z.enum(VARIABLE_NAMES as [StatuslineVariable, ...StatuslineVariable[]]);
+const variableName = z.enum(
+  VARIABLE_NAMES as [StatuslineVariable, ...StatuslineVariable[]],
+);
 
 export const segmentSchema = z.object({
   /** Template text; `{var}` placeholders resolve from the variable whitelist. */
@@ -69,6 +81,8 @@ export const segmentSchema = z.object({
   italic: z.boolean().optional(),
   /** Only render when this variable resolves to a non-empty value. */
   when: variableName.optional(),
+  /** Start a new statusline row before this segment (Claude Code supports multi-line). */
+  newline: z.boolean().optional(),
 });
 
 export const statuslineSpecSchema = z.object({
@@ -79,7 +93,7 @@ export const statuslineSpecSchema = z.object({
    */
   powerline: z.boolean().optional(),
   join: templateString(8).optional(),
-  segments: z.array(segmentSchema).min(1).max(12),
+  segments: z.array(segmentSchema).min(1).max(16),
 });
 
 export type StatuslineSegment = z.infer<typeof segmentSchema>;

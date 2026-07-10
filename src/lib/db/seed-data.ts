@@ -8,30 +8,62 @@ export interface SeedStatusline {
   priceUsd: string;
   tags: string[];
   featured: boolean;
-  /** Fake install count for demo mode / initial seed. */
   installs: number;
   spec: StatuslineSpec;
 }
 
 export const SEED_STATUSLINES: SeedStatusline[] = [
   {
+    slug: "agentcash-mark",
+    name: "AgentCash Mark",
+    description:
+      "Static homage to the AgentCash banner — cube, wordmark, fading slashes and session cost — as a zero-trust data spec. (The live-balance original is the script-tier agentcash-banner.)",
+    author: "merit systems",
+    priceUsd: "0",
+    tags: ["brand", "green", "wordmark"],
+    featured: false,
+    installs: 0,
+    spec: {
+      version: 1,
+      join: " ",
+      segments: [
+        { text: "⬢", fg: "#48e05b" },
+        { text: "AGENT", fg: "#ffffff", bold: true },
+        { text: "CASH", fg: "#48e05b", bold: true },
+        { text: "////", fg: "#3fe15a" },
+        { text: "////", fg: "#28663f" },
+        { text: "///", fg: "#12451c" },
+        { text: "{cost}", fg: "#60e870", bold: true },
+        { text: "{dir} {gitBranch}", fg: "#4ea860", dim: true },
+      ],
+    },
+  },
+  {
     slug: "merit-line",
     name: "Merit Line",
     description:
-      "The house style. Green powerline with model, directory, branch, and live session cost.",
+      "The house style, two lines: model, directory, branch and cost up top; a live context bar with rate limits below.",
     author: "statuslines.dev",
     priceUsd: "0",
-    tags: ["powerline", "green", "cost"],
+    tags: ["powerline", "green", "context", "multi-line"],
     featured: true,
-    installs: 4182,
+    installs: 0,
     spec: {
       version: 1,
       powerline: true,
       segments: [
         { text: "{model}", fg: "#052e16", bg: "#4ade80", bold: true },
-        { text: "{dir}", fg: "#e5e5e5", bg: "#262626" },
+        { text: "{dir}{gitDirty}", fg: "#e5e5e5", bg: "#262626" },
         { text: " {gitBranch}", fg: "#a3a3a3", bg: "#171717", when: "gitBranch" },
         { text: "{cost}", fg: "#4ade80", bg: "#0a0a0a", bold: true },
+        {
+          text: "{contextBar} {contextPct}",
+          fg: "#86efac",
+          bg: "#0a0a0a",
+          newline: true,
+          when: "contextPct",
+        },
+        { text: "5h {limit5h}", fg: "#525252", bg: "#0a0a0a", when: "limit5h" },
       ],
     },
   },
@@ -44,7 +76,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0",
     tags: ["minimal", "mono"],
     featured: true,
-    installs: 3097,
+    installs: 0,
     spec: {
       version: 1,
       join: "  ·  ",
@@ -65,7 +97,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0",
     tags: ["powerline", "tokyo-night", "dark"],
     featured: true,
-    installs: 2764,
+    installs: 0,
     spec: {
       version: 1,
       powerline: true,
@@ -86,7 +118,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0",
     tags: ["cost", "metrics"],
     featured: false,
-    installs: 1893,
+    installs: 0,
     spec: {
       version: 1,
       join: "  ",
@@ -107,7 +139,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0",
     tags: ["powerline", "catppuccin", "pastel"],
     featured: false,
-    installs: 2411,
+    installs: 0,
     spec: {
       version: 1,
       powerline: true,
@@ -127,7 +159,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0",
     tags: ["powerline", "nord", "blue"],
     featured: false,
-    installs: 1546,
+    installs: 0,
     spec: {
       version: 1,
       powerline: true,
@@ -148,7 +180,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0.05",
     tags: ["green", "retro", "terminal"],
     featured: false,
-    installs: 987,
+    installs: 0,
     spec: {
       version: 1,
       join: " ",
@@ -169,7 +201,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0",
     tags: ["metrics", "git"],
     featured: false,
-    installs: 1204,
+    installs: 0,
     spec: {
       version: 1,
       join: "  ",
@@ -191,7 +223,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0.10",
     tags: ["powerline", "dracula", "purple"],
     featured: false,
-    installs: 1731,
+    installs: 0,
     spec: {
       version: 1,
       powerline: true,
@@ -212,7 +244,7 @@ export const SEED_STATUSLINES: SeedStatusline[] = [
     priceUsd: "0.25",
     tags: ["powerline", "warm", "gradient"],
     featured: true,
-    installs: 842,
+    installs: 0,
     spec: {
       version: 1,
       powerline: true,

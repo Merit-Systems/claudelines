@@ -23,7 +23,27 @@ export const statuslines = pgTable("statuslines", {
   priceUsd: numeric("price_usd", { precision: 10, scale: 6 })
     .notNull()
     .default("0"),
-  spec: jsonb("spec").$type<StatuslineSpec>().notNull(),
+  /**
+   * Two tiers:
+   *  - "spec": data-only JSON rendered by the auditable renderer (safe badge)
+   *  - "script": an existing statusline uploaded as-is; runs on the user's
+   *    machine, so listings carry detected capabilities and a review gate
+   */
+  kind: text("kind", { enum: ["spec", "script"] })
+    .notNull()
+    .default("spec"),
+  spec: jsonb("spec").$type<StatuslineSpec>(),
+  /** Raw script source (kind = "script"). */
+  script: text("script"),
+  /** Captured sample output (ANSI allowed) used for previews of scripts. */
+  previewAnsi: text("preview_ansi"),
+  /** Heuristically detected capabilities: network, exec, fs-write, env. */
+  capabilities: text("capabilities").array().notNull().default([]),
+  /** LLM audit at registration (kind = "script"): approve | caution. */
+  auditVerdict: text("audit_verdict"),
+  /** One-paragraph, user-facing summary of what the script does. */
+  auditSummary: text("audit_summary"),
+  auditModel: text("audit_model"),
   tags: text("tags").array().notNull().default([]),
   installs: integer("installs").notNull().default(0),
   revenueUsd: numeric("revenue_usd", { precision: 12, scale: 6 })
