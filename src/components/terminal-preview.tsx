@@ -148,8 +148,7 @@ export function CcFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2 px-4 pt-3 pb-3 font-mono text-[13px]">
       <div style={{ color: "var(--term-muted)" }}>
-        <span style={{ color: "#d97757" }}>✻</span> Refactored the auth
-        middleware and updated 3 tests.
+        <span style={{ color: "#d97757" }}>✻</span> Claude Code
       </div>
       <div
         className="flex items-center gap-2 rounded-[6px] border px-3 py-2"
