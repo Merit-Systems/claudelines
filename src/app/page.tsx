@@ -15,7 +15,7 @@ export default async function HomePage() {
       {/* hero — placeholder copy for now */}
       <section className="flex flex-col gap-3 border-b pb-8 pt-2">
         <h1 className="font-mono text-2xl font-semibold tracking-tight">
-          STATUSLINE&nbsp;REGISTRY
+          Share your Claude Code status line
         </h1>
         <p className="text-muted-foreground max-w-lg font-mono text-sm">
           {"// the bar at the bottom of your Claude Code. browse, add, sell."}
