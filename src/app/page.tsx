@@ -1,4 +1,5 @@
 import { StatuslineEntry } from "@/components/add-to-claude";
+import { ShareButton } from "@/components/share-button";
 import { ListingPreview } from "@/components/terminal-preview";
 import { listStatuslines } from "@/lib/db/queries";
 import { siteUrl } from "@/lib/site";
@@ -17,9 +18,7 @@ export default async function HomePage() {
         <h1 className="font-mono text-2xl font-semibold tracking-tight">
           Share and explore Claude Code status lines
         </h1>
-        <p className="text-muted-foreground max-w-lg font-mono text-sm">
-          {"// the bar at the bottom of your Claude Code. browse, add, sell."}
-        </p>
+        <ShareButton base={base} />
       </section>
 
       <section className="flex flex-col gap-3">
