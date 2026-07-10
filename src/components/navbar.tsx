@@ -23,8 +23,7 @@ export function Navbar() {
             </Link>
           </nav>
         </div>
-        <Link href="/">
-          <Button size="sm">Submit yours</Button>
+        <Link href="/submit">          <Button size="sm">Submit yours</Button>
         </Link>
       </div>
     </header>
