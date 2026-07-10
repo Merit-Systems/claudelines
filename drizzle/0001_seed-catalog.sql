@@ -1,0 +1,30 @@
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('merit-line', 'Merit Line', 'The house style. Green powerline with model, directory, branch, and live session cost.', 'statuslines.dev', '0', '{"version":1,"powerline":true,"segments":[{"text":"{model}","fg":"#052e16","bg":"#4ade80","bold":true},{"text":"{dir}","fg":"#e5e5e5","bg":"#262626"},{"text":" {gitBranch}","fg":"#a3a3a3","bg":"#171717","when":"gitBranch"},{"text":"{cost}","fg":"#4ade80","bg":"#0a0a0a","bold":true}]}'::jsonb, ARRAY['powerline','green','cost']::text[], 4182, true)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('quiet-mono', 'Quiet Mono', 'Barely there. Dim monochrome text for people who think statuslines should whisper.', 'statuslines.dev', '0', '{"version":1,"join":"  ·  ","segments":[{"text":"{model}","fg":"#737373"},{"text":"{dir}","fg":"#525252","dim":true},{"text":"{gitBranch}","fg":"#525252","dim":true,"when":"gitBranch"},{"text":"{cost}","fg":"#737373"}]}'::jsonb, ARRAY['minimal','mono']::text[], 3097, true)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('tokyo-drift', 'Tokyo Drift', 'Tokyo Night palette in powerline form — storm blues, neon accents, zero chill.', 'statuslines.dev', '0', '{"version":1,"powerline":true,"segments":[{"text":"{model}","fg":"#1a1b26","bg":"#7aa2f7","bold":true},{"text":"{dir}","fg":"#c0caf5","bg":"#3b4261"},{"text":" {gitBranch}","fg":"#bb9af7","bg":"#24283b","when":"gitBranch"},{"text":"+{linesAdded} -{linesRemoved}","fg":"#9ece6a","bg":"#1a1b26"}]}'::jsonb, ARRAY['powerline','tokyo-night','dark']::text[], 2764, true)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('cost-hawk', 'Cost Hawk', 'For the budget-anxious: cost front and center, duration and burn detail beside it.', 'statuslines.dev', '0', '{"version":1,"join":"  ","segments":[{"text":"{cost}","fg":"#facc15","bold":true},{"text":"{duration}","fg":"#a16207"},{"text":"{model}","fg":"#737373","dim":true},{"text":"{dir}","fg":"#737373","dim":true}]}'::jsonb, ARRAY['cost','metrics']::text[], 1893, false)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('catppuccin-mocha', 'Catppuccin Mocha', 'The beloved pastel dark theme, rendered as a soft powerline with mauve and peach.', 'statuslines.dev', '0', '{"version":1,"powerline":true,"segments":[{"text":"{model}","fg":"#1e1e2e","bg":"#cba6f7","bold":true},{"text":"{dir}","fg":"#cdd6f4","bg":"#313244"},{"text":" {gitBranch}","fg":"#fab387","bg":"#1e1e2e","when":"gitBranch"},{"text":"{cost}","fg":"#a6e3a1","bg":"#11111b"}]}'::jsonb, ARRAY['powerline','catppuccin','pastel']::text[], 2411, false)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('nord-passage', 'Nord Passage', 'Arctic blues and frost. Calm, cold, and legible at a glance.', 'statuslines.dev', '0', '{"version":1,"powerline":true,"segments":[{"text":"{model}","fg":"#2e3440","bg":"#88c0d0","bold":true},{"text":"{dir}","fg":"#eceff4","bg":"#4c566a"},{"text":" {gitBranch}","fg":"#a3be8c","bg":"#3b4252","when":"gitBranch"},{"text":"{time}","fg":"#81a1c1","bg":"#2e3440"}]}'::jsonb, ARRAY['powerline','nord','blue']::text[], 1546, false)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('matrix-rain', 'Matrix Rain', 'Phosphor green on black. Follow the white rabbit, or at least the session cost.', 'statuslines.dev', '0.05', '{"version":1,"join":" ","segments":[{"text":"[{model}]","fg":"#00ff41","bold":true},{"text":"{cwd}","fg":"#008f11"},{"text":"{gitBranch}","fg":"#00ff41","dim":true,"when":"gitBranch"},{"text":"{cost}","fg":"#00ff41","bold":true}]}'::jsonb, ARRAY['green','retro','terminal']::text[], 987, false)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('ship-it', 'Ship It', 'Diff-focused: lines added and removed with branch context. For people who measure days in commits.', 'statuslines.dev', '0', '{"version":1,"join":"  ","segments":[{"text":" {gitBranch}","fg":"#c084fc","bold":true,"when":"gitBranch"},{"text":"+{linesAdded}","fg":"#4ade80","bold":true},{"text":"-{linesRemoved}","fg":"#f87171"},{"text":"{dir}","fg":"#737373","dim":true},{"text":"{duration}","fg":"#737373","dim":true}]}'::jsonb, ARRAY['metrics','git']::text[], 1204, false)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('dracula-midnight', 'Dracula Midnight', 'Purple, pink, and a bite of cyan on the classic Dracula background.', 'statuslines.dev', '0.10', '{"version":1,"powerline":true,"segments":[{"text":"{model}","fg":"#282a36","bg":"#bd93f9","bold":true},{"text":"{dir}","fg":"#f8f8f2","bg":"#44475a"},{"text":" {gitBranch}","fg":"#ff79c6","bg":"#282a36","when":"gitBranch"},{"text":"{cost} · {duration}","fg":"#8be9fd","bg":"#191a21"}]}'::jsonb, ARRAY['powerline','dracula','purple']::text[], 1731, false)
+ON CONFLICT (slug) DO NOTHING;
+INSERT INTO statuslines (slug, name, description, author, price_usd, spec, tags, installs, featured)
+VALUES ('sunset-boulevard', 'Sunset Boulevard', 'A warm gradient from amber to rose — golden hour for your terminal.', 'statuslines.dev', '0.25', '{"version":1,"powerline":true,"segments":[{"text":"{model}","fg":"#431407","bg":"#fbbf24","bold":true},{"text":"{dir}","fg":"#451a03","bg":"#fb923c"},{"text":" {gitBranch}","fg":"#4c0519","bg":"#fb7185","when":"gitBranch"},{"text":"{cost}","fg":"#fda4af","bg":"#4c0519","bold":true}]}'::jsonb, ARRAY['powerline','warm','gradient']::text[], 842, true)
+ON CONFLICT (slug) DO NOTHING;
