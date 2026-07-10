@@ -1,40 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Check, Copy } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-
-/** Hero actions: Share yours + a one-line prompt copyer for Claude Code. */
+/** skills.sh-style "try it now": one dark command box that copies itself. */
 export function ShareButton({ base }: { base: string }) {
   const [copied, setCopied] = useState(false);
   const host = base.replace(/^https?:\/\//, "");
 
-  const prompt = `Set up the statuslines skill: fetch ${base}/skill.md and save it to ~/.claude/skills/statuslines/SKILL.md. It lets you browse, install, publish, and sell Claude Code statuslines from ${base}.`;
+  const command = `curl -fsSL ${host}/skill.md --create-dirs -o ~/.claude/skills/statuslines/SKILL.md`;
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Link href="/submit">
-        <Button size="lg">Share yours</Button>
-      </Link>
+    <div className="flex max-w-xl flex-col gap-3">
+      <p className="text-muted-foreground font-mono text-xs tracking-widest">
+        TRY IT NOW
+      </p>
       <button
         type="button"
         onClick={() => {
-          navigator.clipboard.writeText(prompt);
+          navigator.clipboard.writeText(command);
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         }}
-        title="Copies a prompt — paste it into Claude Code"
-        className="group flex h-10 max-w-full cursor-pointer items-center gap-2.5 border px-4 font-mono text-sm transition-colors hover:bg-muted"
+        className="group flex cursor-pointer items-center gap-3 bg-[#141414] px-4 py-3.5 text-left font-mono text-sm text-[#e5e5e5] transition-colors hover:bg-[#1c1c1c]"
       >
-        <span className="truncate">
-          {copied ? "Copied — paste into Claude Code" : `Set up ${host}/skill.md`}
+        <span className="shrink-0 text-[#737373]">$</span>
+        <span className="no-scrollbar flex-1 overflow-x-auto whitespace-nowrap">
+          {command}
         </span>
         {copied ? (
-          <Check className="text-primary size-4 shrink-0" />
+          <Check className="size-4 shrink-0 text-[#4ade80]" />
         ) : (
-          <Copy className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-colors" />
+          <Copy className="size-4 shrink-0 text-[#737373] transition-colors group-hover:text-[#e5e5e5]" />
         )}
       </button>
     </div>
