@@ -2,40 +2,41 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Upload } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-/** Copies the publish-your-statusline prompt — paste into Claude Code. */
+/** Hero actions: Share yours + a one-line prompt copyer for Claude Code. */
 export function ShareButton({ base }: { base: string }) {
   const [copied, setCopied] = useState(false);
+  const host = base.replace(/^https?:\/\//, "");
 
-  const prompt = `Publish my current Claude Code statusline to ${base}. Read the statusLine command from ~/.claude/settings.json and the script it points to, capture a preview with: echo '{}' | COLUMNS=120 <that command>. Then fetch ${base}/llms.txt and POST /api/register ($0.50 via x402/MPP — funds a security audit) with the script, the captured previewAnsi, a name/description, my price (or "0" for free) and payout wallet.`;
+  const prompt = `Publish my Claude Code statusline to ${base} — fetch ${base}/llms.txt and follow the publish flow (register my current statusline with a captured preview).`;
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
+    <div className="flex flex-wrap items-center gap-3">
+      <Link href="/submit">
+        <Button size="lg">Share yours</Button>
+      </Link>
+      <button
+        type="button"
         onClick={() => {
           navigator.clipboard.writeText(prompt);
           setCopied(true);
-          setTimeout(() => setCopied(false), 2500);
+          setTimeout(() => setCopied(false), 2000);
         }}
+        title="Copies a prompt — paste it into Claude Code"
+        className="group flex h-10 max-w-full cursor-pointer items-center gap-2.5 border px-4 font-mono text-sm transition-colors hover:bg-muted"
       >
+        <span className="truncate">
+          {copied ? "Copied — paste into Claude Code" : `Publish my statusline to ${host}`}
+        </span>
         {copied ? (
-          <>
-            <Check className="size-4" />
-            Copied — paste into Claude Code
-          </>
+          <Check className="text-primary size-4 shrink-0" />
         ) : (
-          <>
-            <Upload className="size-4" />
-            Share yours
-          </>
+          <Copy className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-colors" />
         )}
-      </Button>
-      <Link href="/docs">
-        <Button variant="outline">Docs</Button>
-      </Link>
+      </button>
     </div>
   );
 }
