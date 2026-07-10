@@ -20,7 +20,7 @@ import { router } from "./router";
 import { siteUrl } from "./site";
 import { detectCapabilities } from "./statusline/capabilities";
 import { hasHighSeverity, scanRedFlags } from "./statusline/redflags";
-import { auditScript } from "./statusline/audit";
+import { auditAvailable, auditScript } from "./statusline/audit";
 import {
   fetchTweet,
   getIdentity,
@@ -318,7 +318,7 @@ router
     `Publish a Claude Code statusline for a flat $${REGISTER_PRICE}. Upload your script as-is in \`script\` with a captured \`previewAnsi\`. The fee funds an LLM security audit at registration; scripts that fail are not listed (the fee bought the audit). Set priceUsd ("0" = free, or any amount) to sell — buyers pay the wallet you registered from, directly. Verify an X identity (identity/claim + identity/verify) to display @handle as author; otherwise unclaimed.`,
   )
   .validate(async (body) => {
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!auditAvailable()) {
       throw new HttpError(
         "Submissions are temporarily unavailable (audit service not configured)",
         503,

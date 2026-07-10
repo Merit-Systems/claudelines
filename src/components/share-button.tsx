@@ -30,7 +30,7 @@ export function ShareButton({ base }: { base: string }) {
         }}
       >
         {copied ? (
-          <Check className="size-4" />
+          <Check className="size-5" />
         ) : (
           <Copy className="size-4" />
         )}
