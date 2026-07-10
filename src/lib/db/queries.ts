@@ -1,9 +1,46 @@
-import { and, asc, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  gt,
+  ilike,
+  or,
+  sql,
+} from "drizzle-orm";
 
-import { db, events, feedback, statuslines, type StatuslineRow } from "./index";
+import {
+  db,
+  events,
+  feedback,
+  identities,
+  statuslines,
+  type StatuslineRow,
+} from "./index";
 
 export type SortKey = "installs" | "newest" | "revenue";
 export type SortDirection = "asc" | "desc";
+
+/**
+ * Authorship is derived, never stored: a listing is credited to the verified
+ * X handle of its owning wallet at read time, or shows as anonymous.
+ */
+export type StatuslineWithAuthor = StatuslineRow & {
+  authorHandle: string | null;
+  authorAvatarUrl: string | null;
+};
+
+const withAuthor = {
+  ...getTableColumns(statuslines),
+  authorHandle: identities.twitterHandle,
+  authorAvatarUrl: identities.twitterAvatarUrl,
+};
+
+const authorJoin = and(
+  eq(identities.wallet, statuslines.authorWallet),
+  eq(identities.verified, true),
+);
 
 export async function listStatuslines(
   opts: {
@@ -12,7 +49,7 @@ export async function listStatuslines(
     direction?: SortDirection;
     limit?: number;
   } = {},
-): Promise<StatuslineRow[]> {
+): Promise<StatuslineWithAuthor[]> {
   const { q, sort = "installs", direction = "desc", limit = 60 } = opts;
 
   const orderColumn =
@@ -24,8 +61,9 @@ export async function listStatuslines(
   const order = direction === "asc" ? asc(orderColumn) : desc(orderColumn);
 
   return db()
-    .select()
+    .select(withAuthor)
     .from(statuslines)
+    .leftJoin(identities, authorJoin)
     .where(
       q
         ? and(
@@ -44,19 +82,21 @@ export async function listStatuslines(
 
 export async function getStatusline(
   slug: string,
-): Promise<StatuslineRow | null> {
+): Promise<StatuslineWithAuthor | null> {
   const rows = await db()
-    .select()
+    .select(withAuthor)
     .from(statuslines)
+    .leftJoin(identities, authorJoin)
     .where(eq(statuslines.slug, slug))
     .limit(1);
   return rows[0] ?? null;
 }
 
-export async function getFeatured(limit = 4): Promise<StatuslineRow[]> {
+export async function getFeatured(limit = 4): Promise<StatuslineWithAuthor[]> {
   return db()
-    .select()
+    .select(withAuthor)
     .from(statuslines)
+    .leftJoin(identities, authorJoin)
     .where(eq(statuslines.hidden, false))
     .orderBy(desc(statuslines.featured), desc(statuslines.installs))
     .limit(limit);
@@ -66,7 +106,6 @@ export async function createStatusline(input: {
   slug: string;
   name: string;
   description: string;
-  author: string;
   authorWallet: string | null;
   priceUsd: string;
   script: string;
@@ -85,7 +124,6 @@ export async function createStatusline(input: {
       slug: input.slug,
       name: input.name,
       description: input.description,
-      author: input.author,
       authorWallet: input.authorWallet,
       priceUsd: input.priceUsd,
       kind: "script",
@@ -165,22 +203,14 @@ export async function bumpSalesCount(row: StatuslineRow): Promise<void> {
     .where(eq(statuslines.id, row.id));
 }
 
-/** After identity verification, stamp @handle on everything this wallet owns. */
-export async function adoptVerifiedAuthor(
-  wallet: string,
-  handle: string,
-): Promise<void> {
-  await db()
-    .update(statuslines)
-    .set({ author: `@${handle}` })
-    .where(eq(statuslines.authorWallet, wallet.toLowerCase()));
-}
-
 /** Everything a creator wallet has published. */
-export async function listByWallet(wallet: string): Promise<StatuslineRow[]> {
+export async function listByWallet(
+  wallet: string,
+): Promise<StatuslineWithAuthor[]> {
   return db()
-    .select()
+    .select(withAuthor)
     .from(statuslines)
+    .leftJoin(identities, authorJoin)
     .where(
       and(
         eq(statuslines.authorWallet, wallet.toLowerCase()),

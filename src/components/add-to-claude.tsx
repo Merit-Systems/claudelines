@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { CcFrame, TERM_THEMES } from "@/components/terminal-preview";
 import { usePreviewTheme } from "@/components/preview-theme";
+import { XAuthor } from "@/components/x-author";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,6 +30,7 @@ export function StatuslineEntry({
   slug,
   name,
   author,
+  avatarUrl,
   wallet,
   installs,
   revenue,
@@ -42,6 +44,8 @@ export function StatuslineEntry({
   name: string;
   /** "@handle" when the creator verified an X identity; anything else is ignored. */
   author: string;
+  /** X profile picture of the verified creator, shown left of the handle. */
+  avatarUrl?: string | null;
   /** Creator wallet, when known — links the ?-avatar to their creator page. */
   wallet?: string | null;
   installs: string;
@@ -114,15 +118,11 @@ export function StatuslineEntry({
             {name}
           </Link>
           {author.startsWith("@") ? (
-            <a
-              href={`https://x.com/${author.slice(1)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary truncate hover:underline"
-              title="Verified via X"
-            >
-              {author} ✓
-            </a>
+            <XAuthor
+              handle={author.slice(1)}
+              avatarUrl={avatarUrl}
+              className="truncate"
+            />
           ) : wallet ? (
             <Link
               href={`/creators/${wallet}`}

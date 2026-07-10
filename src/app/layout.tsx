@@ -42,28 +42,26 @@ export default function RootLayout({
                 {children}
               </main>
               <footer className="border-t border-border/40">
-                <div className="text-muted-foreground mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-6 text-xs">
+                <div className="text-muted-foreground mx-auto w-full max-w-4xl px-4 py-6 text-center text-[11px] whitespace-nowrap sm:text-xs">
                   <p>
-                    statuslines are scripts — every one is audited, and we try
-                    to catch the bad ones.{" "}
+                    Review scripts before installing.{" "}
+                    Our{" "}
                     <a
-                      href="/docs#safety"
+                      href="/docs#checks"
                       className="hover:text-foreground underline underline-offset-2"
                     >
-                      how
+                      checks
+                    </a>{" "}
+                    · Made with malice by{" "}
+                    <a
+                      href="https://x.com/rsproule"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:text-foreground underline underline-offset-2"
+                    >
+                      @rsproule
                     </a>
                   </p>
-                  <div className="flex items-center gap-4">
-                    <a href="/skill.md" className="hover:text-foreground">
-                      skill.md
-                    </a>
-                    <a href="/llms.txt" className="hover:text-foreground">
-                      llms.txt
-                    </a>
-                    <a href="/openapi.json" className="hover:text-foreground">
-                      openapi.json
-                    </a>
-                  </div>
                 </div>
               </footer>
             </div>

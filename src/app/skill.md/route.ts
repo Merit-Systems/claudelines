@@ -7,7 +7,7 @@ export function GET() {
   const dev = base.startsWith("http://localhost") ? " --dev" : "";
   const md = `---
 name: claudelines
-description: Browse, install, publish, and sell Claude Code statuslines via ${base}. Use when the user wants a new statusline, wants to share or sell their current statusline, asks about the bar at the bottom of Claude Code, or mentions claudelines.com.
+description: Browse, install, publish, and sell Claude Code statuslines via ${base}. Use when the user wants a new statusline, wants to share or sell their current statusline, wants to claim their listings or connect their X handle, asks about the bar at the bottom of Claude Code, or mentions claudelines.com.
 ---
 
 # ClaudeLines — Claude Code statusline registry

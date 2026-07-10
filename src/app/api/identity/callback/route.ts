@@ -1,4 +1,3 @@
-import { adoptVerifiedAuthor } from "@/lib/db/queries";
 import {
   exchangeCodeForHandle,
   findByOAuthState,
@@ -48,9 +47,13 @@ export async function GET(req: Request) {
   }
 
   try {
-    const handle = await exchangeCodeForHandle(code, identity.oauthVerifier);
-    await markVerified(identity.wallet, handle);
-    await adoptVerifiedAuthor(identity.wallet, handle);
+    const { handle, avatarUrl } = await exchangeCodeForHandle(
+      code,
+      identity.oauthVerifier,
+    );
+    // Listings credit the wallet's verified handle at read time — binding
+    // the identity is all it takes.
+    await markVerified(identity.wallet, handle, avatarUrl);
     return page(
       `Verified as @${handle}`,
       "Your listings now show you as the author. You can close this tab.",

@@ -35,7 +35,7 @@ export default function SubmitPage() {
         manual={[
           {
             label: "Register with the agentcash CLI",
-            text: `# capture a preview of your current statusline\nPREVIEW=$(echo '{}' | COLUMNS=120 ~/.claude/statusline.sh)\n\n# upload it ($0.50 — pays for the Opus audit; use "spec" instead of "script" for the $0.01 data-only tier)\nnpx agentcash@latest fetch ${base}/api/register -m POST -p x402 -b "$(jq -n \\\n  --rawfile script ~/.claude/statusline.sh --arg preview \"$PREVIEW\" \\\n  '{slug: \"my-statusline\", name: \"My Statusline\", description: \"...\", script: $script, previewAnsi: $preview, priceUsd: \"0\", author: \"you\", tags: []}')"`,
+            text: `# capture a preview of your current statusline\nPREVIEW=$(echo '{}' | COLUMNS=120 ~/.claude/statusline.sh)\n\n# upload it ($0.15 — funds the security audit; authorship comes from your wallet's verified X identity)\nnpx agentcash@latest fetch ${base}/api/register -m POST -b "$(jq -n \\\n  --rawfile script ~/.claude/statusline.sh --arg preview \"$PREVIEW\" \\\n  '{slug: \"my-statusline\", name: \"My Statusline\", description: \"...\", script: $script, previewAnsi: $preview, priceUsd: \"0\", tags: []}')"`,
           },
           {
             label: "Spec format + all {variables}",

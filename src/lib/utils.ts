@@ -20,3 +20,8 @@ export function formatCount(n: number): string {
 export function shortWallet(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
+
+/** Display credit for a listing: the owning wallet's verified X handle. */
+export function displayAuthor(handle: string | null): string {
+  return handle ? `@${handle}` : "anonymous";
+}

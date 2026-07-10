@@ -11,7 +11,7 @@ import {
   type SortKey,
 } from "@/lib/db/queries";
 import { siteUrl } from "@/lib/site";
-import { formatCount } from "@/lib/utils";
+import { displayAuthor, formatCount } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -100,7 +100,8 @@ export default async function HomePage({
                   rank={i + 1}
                   slug={row.slug}
                   name={row.name}
-                  author={row.author}
+                  author={displayAuthor(row.authorHandle)}
+                  avatarUrl={row.authorAvatarUrl}
                   wallet={row.authorWallet}
                   installs={formatCount(row.installs)}
                   revenue={`$${Number(row.revenueUsd).toFixed(2)}`}

@@ -85,13 +85,13 @@ export async function findByOAuthState(state: string) {
 }
 
 /**
- * Exchange the OAuth code for the signed-in user's handle.
+ * Exchange the OAuth code for the signed-in user's handle + profile picture.
  * Throws with a user-displayable message on any failure.
  */
 export async function exchangeCodeForHandle(
   code: string,
   verifier: string,
-): Promise<string> {
+): Promise<{ handle: string; avatarUrl: string | null }> {
   const clientId = process.env.X_OAUTH_CLIENT_ID!;
   const secret = process.env.X_OAUTH_CLIENT_SECRET;
   const headers: Record<string, string> = {
@@ -119,24 +119,31 @@ export async function exchangeCodeForHandle(
   const { access_token } = (await tokenRes.json()) as { access_token?: string };
   if (!access_token) throw new Error("X sign-in returned no access token");
 
-  const meRes = await fetch(ME_URL, {
+  const meRes = await fetch(`${ME_URL}?user.fields=profile_image_url`, {
     headers: { authorization: `Bearer ${access_token}` },
   });
   if (!meRes.ok) throw new Error(`Could not read X profile (${meRes.status})`);
-  const me = (await meRes.json()) as { data?: { username?: string } };
+  const me = (await meRes.json()) as {
+    data?: { username?: string; profile_image_url?: string };
+  };
   if (!me.data?.username) throw new Error("X profile has no username");
-  return me.data.username;
+  return {
+    handle: me.data.username,
+    avatarUrl: me.data.profile_image_url ?? null,
+  };
 }
 
-/** Bind wallet → @handle and clear the pending OAuth state. */
+/** Bind wallet → @handle (+ pfp) and clear the pending OAuth state. */
 export async function markVerified(
   wallet: string,
   handle: string,
+  avatarUrl: string | null,
 ): Promise<void> {
   await db()
     .update(identities)
     .set({
       twitterHandle: handle.replace(/^@/, ""),
+      twitterAvatarUrl: avatarUrl,
       verified: true,
       verifiedAt: new Date(),
       oauthState: null,

@@ -4,13 +4,15 @@ import { Download, ShieldCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ClaimButton } from "@/components/claim-button";
 import { CopyBlock } from "@/components/copy-block";
 import { StatuslineEntry } from "@/components/add-to-claude";
 import { FeedbackSection } from "@/components/feedback-section";
 import { ListingPreview, TerminalPreview } from "@/components/terminal-preview";
+import { XAuthor } from "@/components/x-author";
 import { getStatusline, getFeedback } from "@/lib/db/queries";
 import { siteUrl } from "@/lib/site";
-import { formatCount, formatUsd } from "@/lib/utils";
+import { displayAuthor, formatCount, formatUsd } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +55,17 @@ export default async function StatuslinePage({ params }: Props) {
         </div>
         <p className="text-muted-foreground text-sm">{row.description}</p>
         <div className="text-muted-foreground flex flex-wrap items-center gap-4 text-xs">
-          <span>by {row.author}</span>
+          <span className="inline-flex items-center gap-1.5">
+            by{" "}
+            {row.authorHandle ? (
+              <XAuthor
+                handle={row.authorHandle}
+                avatarUrl={row.authorAvatarUrl}
+              />
+            ) : (
+              "anonymous"
+            )}
+          </span>
           <span className="inline-flex items-center gap-1">
             <Download className="size-3" />
             {formatCount(row.installs)} installs
@@ -63,6 +75,7 @@ export default async function StatuslinePage({ params }: Props) {
               {t}
             </Badge>
           ))}
+          {!row.authorHandle && <ClaimButton base={siteUrl()} />}
         </div>
       </div>
 
@@ -115,7 +128,8 @@ export default async function StatuslinePage({ params }: Props) {
         className="border"
         slug={row.slug}
         name={row.name}
-        author={row.author}
+        author={displayAuthor(row.authorHandle)}
+        avatarUrl={row.authorAvatarUrl}
         wallet={row.authorWallet}
         installs={`${formatCount(row.installs)} installs`}
         priceUsd={row.priceUsd}

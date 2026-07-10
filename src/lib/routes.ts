@@ -35,6 +35,7 @@ import {
   upsertReview,
   slugTaken,
   type SortKey,
+  type StatuslineWithAuthor,
 } from "./db/queries";
 import type { StatuslineRow } from "./db/schema";
 
@@ -55,13 +56,14 @@ const priceString = z
   .string()
   .regex(/^\d{1,9}(\.\d{1,6})?$/, 'Decimal USD string, e.g. "0.05"');
 
-function publicEntry(row: StatuslineRow, includePayload: boolean) {
+function publicEntry(row: StatuslineWithAuthor, includePayload: boolean) {
   const free = Number(row.priceUsd) === 0;
   return {
     slug: row.slug,
     name: row.name,
     description: row.description,
-    author: row.author,
+    // Derived, never stored: the owning wallet's verified X handle or nothing.
+    author: row.authorHandle ? `@${row.authorHandle}` : "anonymous",
     capabilities: row.capabilities,
     audit:
       row.auditSummary
@@ -201,7 +203,7 @@ router
         rank: i + 1,
         slug: r.slug,
         name: r.name,
-        author: r.author,
+        author: r.authorHandle ? `@${r.authorHandle}` : "anonymous",
         installs: r.installs,
         revenueUsd: r.revenueUsd,
         priceUsd: r.priceUsd,
@@ -362,9 +364,8 @@ router
       slug: body.slug,
       name: body.name,
       description: body.description,
-      // Twitter is the only identity: @handle when verified, else anonymous.
-      author: identity?.verified ? `@${identity.twitterHandle}` : "anonymous",
-      // The registering wallet is the payout wallet and the identity anchor.
+      // The registering wallet is the payout wallet and the sole authorship
+      // anchor — display credit is derived from its verified X identity.
       authorWallet: wallet ? wallet.toLowerCase() : null,
       priceUsd: Number(body.priceUsd) === 0 ? "0" : body.priceUsd,
       script: body.script,

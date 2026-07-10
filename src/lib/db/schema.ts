@@ -14,10 +14,10 @@ export const statuslines = pgTable("statuslines", {
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
-  author: text("author").notNull().default("anonymous"),
   /** The creator's wallet: pays the registration fee, receives sale
-   *  proceeds (x402 payTo), and carries the verified X identity. One wallet,
-   *  no multi-mapping. Null only for platform seeds. */
+   *  proceeds (x402 payTo), and is the sole authorship anchor — display
+   *  credit is derived from its verified X identity at read time. Null only
+   *  for platform seeds. */
   authorWallet: text("author_wallet"),
   /** Decimal USD string; "0" = free. */
   priceUsd: numeric("price_usd", { precision: 10, scale: 6 })
@@ -65,6 +65,8 @@ export const identities = pgTable("identities", {
   wallet: text("wallet").primaryKey(),
   /** X handle without @ — set from the OAuth profile on verification. */
   twitterHandle: text("twitter_handle"),
+  /** X profile picture URL, captured with the handle on verification. */
+  twitterAvatarUrl: text("twitter_avatar_url"),
   /** Pending "Sign in with X" OAuth state; cleared once verified. */
   oauthState: text("oauth_state").unique(),
   /** PKCE code_verifier for the pending OAuth flow; cleared once verified. */

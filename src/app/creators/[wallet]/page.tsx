@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { StatuslineEntry } from "@/components/add-to-claude";
+import { ClaimButton } from "@/components/claim-button";
 import { ListingPreview } from "@/components/terminal-preview";
+import { XAuthor } from "@/components/x-author";
 import { listByWallet } from "@/lib/db/queries";
 import { getIdentity } from "@/lib/identity";
 import { siteUrl } from "@/lib/site";
-import { formatCount, shortWallet } from "@/lib/utils";
+import { displayAuthor, formatCount, shortWallet } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -39,19 +41,20 @@ export default async function CreatorPage({ params }: Props) {
       <div className="flex flex-col gap-2">
         {verified ? (
           <h1 className="text-2xl font-medium tracking-tight">
-            <a
-              href={`https://x.com/${verified}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary hover:underline"
-            >
-              @{verified} ✓
-            </a>
+            <XAuthor
+              handle={verified}
+              avatarUrl={identity?.twitterAvatarUrl}
+              size={28}
+              className="gap-2.5"
+            />
           </h1>
         ) : (
-          <h1 className="font-mono text-2xl font-medium tracking-tight">
-            {shortWallet(wallet)}
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-mono text-2xl font-medium tracking-tight">
+              {shortWallet(wallet)}
+            </h1>
+            <ClaimButton base={base} />
+          </div>
         )}
         <p className="text-muted-foreground font-mono text-xs">
           {rows.length} statusline{rows.length === 1 ? "" : "s"} ·{" "}
@@ -67,7 +70,8 @@ export default async function CreatorPage({ params }: Props) {
             <StatuslineEntry
               slug={row.slug}
               name={row.name}
-              author={row.author}
+              author={displayAuthor(row.authorHandle)}
+              avatarUrl={row.authorAvatarUrl}
               wallet={row.authorWallet}
               installs={`${formatCount(row.installs)} installs`}
               priceUsd={row.priceUsd}
