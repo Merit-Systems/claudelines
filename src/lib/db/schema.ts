@@ -63,10 +63,12 @@ export const statuslines = pgTable("statuslines", {
 export const identities = pgTable("identities", {
   /** Lowercased EVM address, proven via SIWX signature. */
   wallet: text("wallet").primaryKey(),
-  /** Claimed X handle, without @. */
-  twitterHandle: text("twitter_handle").notNull(),
-  /** One-time code the user must post in a tweet from that handle. */
-  code: text("code").notNull(),
+  /** X handle without @ — set from the OAuth profile on verification. */
+  twitterHandle: text("twitter_handle"),
+  /** Pending "Sign in with X" OAuth state; cleared once verified. */
+  oauthState: text("oauth_state").unique(),
+  /** PKCE code_verifier for the pending OAuth flow; cleared once verified. */
+  oauthVerifier: text("oauth_verifier"),
   verified: boolean("verified").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

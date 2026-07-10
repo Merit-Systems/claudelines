@@ -401,15 +401,41 @@ router
       },
       capabilities: row.capabilities,
       priceUsd: row.priceUsd,
-      author: identity?.verified
-        ? { verified: true, handle: `@${identity.twitterHandle}` }
+      // Always tell the creator how their authorship shows and how to claim it.
+      connectTwitter: identity?.verified
+        ? {
+            status: "verified",
+            handle: `@${identity.twitterHandle}`,
+            message: `This listing is credited to @${identity.twitterHandle}.`,
+          }
         : {
-            verified: false,
-            note: "Your listing shows as UNCLAIMED. Link your X handle so it shows @you as the author.",
-            howToClaim: [
-              `POST ${base}/api/identity/claim (SIWX-signed) with {"handle": "yourhandle"} — returns a one-time code.`,
-              `Tweet the code from @yourhandle, then POST ${base}/api/identity/verify (SIWX-signed) with {"tweetUrl": "..."}.`,
-              "Verifying stamps @you on this and all your listings.",
+            status: "unclaimed",
+            message:
+              "Your listing shows as UNCLAIMED (a ?-avatar). Connect your X/Twitter to be credited as @you on this and every listing from your wallet — free, no extra payment.",
+            steps: [
+              {
+                step: 1,
+                what: "Request a code",
+                call: `POST ${base}/api/identity/claim`,
+                auth: "SIWX (sign with the same wallet you registered from)",
+                body: { handle: "yourhandle" },
+                returns: "a one-time verification code",
+              },
+              {
+                step: 2,
+                what: "Tweet the code",
+                detail:
+                  "Post a public tweet from @yourhandle containing the code.",
+              },
+              {
+                step: 3,
+                what: "Verify",
+                call: `POST ${base}/api/identity/verify`,
+                auth: "SIWX (same wallet)",
+                body: { tweetUrl: "https://x.com/yourhandle/status/…" },
+                result:
+                  "We read the tweet and stamp @you on all your listings.",
+              },
             ],
           },
       note:
