@@ -1,6 +1,6 @@
 import { and, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
 
-import { db, events, statuslines, type StatuslineRow } from "./index";
+import { db, events, feedback, statuslines, type StatuslineRow } from "./index";
 import type { StatuslineSpec } from "../statusline/spec";
 
 export type SortKey = "installs" | "newest" | "revenue";
@@ -22,12 +22,15 @@ export async function listStatuslines(
     .from(statuslines)
     .where(
       q
-        ? or(
-            ilike(statuslines.name, `%${q}%`),
-            ilike(statuslines.description, `%${q}%`),
-            ilike(statuslines.slug, `%${q}%`),
+        ? and(
+            eq(statuslines.hidden, false),
+            or(
+              ilike(statuslines.name, `%${q}%`),
+              ilike(statuslines.description, `%${q}%`),
+              ilike(statuslines.slug, `%${q}%`),
+            ),
           )
-        : undefined,
+        : eq(statuslines.hidden, false),
     )
     .orderBy(order, desc(statuslines.createdAt))
     .limit(limit);
@@ -48,6 +51,7 @@ export async function getFeatured(limit = 4): Promise<StatuslineRow[]> {
   return db()
     .select()
     .from(statuslines)
+    .where(eq(statuslines.hidden, false))
     .orderBy(desc(statuslines.featured), desc(statuslines.installs))
     .limit(limit);
 }
@@ -67,6 +71,7 @@ export async function createStatusline(input: {
   auditVerdict: string | null;
   auditSummary: string | null;
   auditModel: string | null;
+  redFlags: string[];
   tags: string[];
   registeredBy: string | null;
 }): Promise<StatuslineRow> {
@@ -87,6 +92,7 @@ export async function createStatusline(input: {
       auditVerdict: input.auditVerdict,
       auditSummary: input.auditSummary,
       auditModel: input.auditModel,
+      redFlags: input.redFlags,
       tags: input.tags,
     })
     .returning();
@@ -172,6 +178,99 @@ export async function listByWallet(wallet: string): Promise<StatuslineRow[]> {
   return db()
     .select()
     .from(statuslines)
-    .where(eq(statuslines.authorWallet, wallet.toLowerCase()))
+    .where(
+      and(
+        eq(statuslines.authorWallet, wallet.toLowerCase()),
+        eq(statuslines.hidden, false),
+      ),
+    )
     .orderBy(desc(statuslines.installs), desc(statuslines.createdAt));
+}
+
+const REPORT_HIDE_THRESHOLD = 5;
+
+export type FeedbackRow = typeof feedback.$inferSelect;
+
+/** Upsert a wallet's review (one per wallet per listing). */
+export async function upsertReview(
+  row: StatuslineRow,
+  wallet: string,
+  rating: number,
+  comment: string | null,
+): Promise<void> {
+  const w = wallet.toLowerCase();
+  const existing = await db()
+    .select({ id: feedback.id })
+    .from(feedback)
+    .where(
+      and(
+        eq(feedback.statuslineId, row.id),
+        eq(feedback.wallet, w),
+        eq(feedback.kind, "review"),
+      ),
+    )
+    .limit(1);
+  if (existing[0]) {
+    await db()
+      .update(feedback)
+      .set({ rating, comment, createdAt: new Date() })
+      .where(eq(feedback.id, existing[0].id));
+  } else {
+    await db()
+      .insert(feedback)
+      .values({ statuslineId: row.id, kind: "review", wallet: w, rating, comment });
+  }
+}
+
+/** Record a report; auto-hide once enough DISTINCT wallets report. */
+export async function addReport(
+  row: StatuslineRow,
+  wallet: string,
+  comment: string,
+): Promise<{ hidden: boolean }> {
+  const w = wallet.toLowerCase();
+  await db()
+    .insert(feedback)
+    .values({ statuslineId: row.id, kind: "report", wallet: w, comment });
+  const distinct = await db()
+    .selectDistinct({ wallet: feedback.wallet })
+    .from(feedback)
+    .where(and(eq(feedback.statuslineId, row.id), eq(feedback.kind, "report")));
+  const hide = row.hidden || distinct.length >= REPORT_HIDE_THRESHOLD;
+  if (hide !== row.hidden) {
+    await db()
+      .update(statuslines)
+      .set({ hidden: hide, reportCount: distinct.length })
+      .where(eq(statuslines.id, row.id));
+  }
+  return { hidden: hide };
+}
+
+/** Reviews + reports for a listing, plus the rating aggregate. */
+export async function getFeedback(statuslineId: string): Promise<{
+  reviews: FeedbackRow[];
+  reports: FeedbackRow[];
+  avg: number | null;
+  count: number;
+}> {
+  const rows = await db()
+    .select()
+    .from(feedback)
+    .where(eq(feedback.statuslineId, statuslineId))
+    .orderBy(desc(feedback.createdAt));
+  const reviews = rows.filter((r) => r.kind === "review");
+  const reports = rows.filter((r) => r.kind === "report");
+  const rated = reviews.filter((r) => typeof r.rating === "number");
+  const avg = rated.length
+    ? rated.reduce((n, r) => n + (r.rating ?? 0), 0) / rated.length
+    : null;
+  return { reviews, reports, avg, count: rated.length };
+}
+
+/** Admin delist / relist. */
+export async function setHidden(slug: string, hidden: boolean): Promise<void> {
+  await db()
+    .update(statuslines)
+    .set({ hidden })
+    .where(eq(statuslines.slug, slug));
 }

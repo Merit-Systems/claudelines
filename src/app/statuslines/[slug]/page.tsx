@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CopyBlock } from "@/components/copy-block";
 import { StatuslineEntry } from "@/components/add-to-claude";
+import { FeedbackSection } from "@/components/feedback-section";
 import {
   ListingPreview,
   StatuslineRow,
   TerminalPreview,
 } from "@/components/terminal-preview";
-import { getStatusline } from "@/lib/db/queries";
+import { getStatusline, getFeedback } from "@/lib/db/queries";
 import { MOCK_SESSIONS } from "@/lib/statusline/mock";
 import { siteUrl } from "@/lib/site";
 import { formatCount, formatUsd } from "@/lib/utils";
@@ -36,6 +37,7 @@ export default async function StatuslinePage({ params }: Props) {
 
   const free = Number(row.priceUsd) === 0;
   const isScript = row.kind === "script";
+  const feedback = await getFeedback(row.id);
 
   return (
     <div className="flex flex-col gap-8">
@@ -98,6 +100,18 @@ export default async function StatuslinePage({ params }: Props) {
               ))}
             </div>
           )}
+          {row.redFlags.length > 0 && (
+            <div className="border-destructive/30 bg-destructive/5 flex flex-col gap-1 rounded border p-2.5">
+              <p className="text-destructive text-xs font-medium">
+                Automated scanner flags
+              </p>
+              <ul className="text-muted-foreground text-xs">
+                {row.redFlags.map((f) => (
+                  <li key={f}>— {f}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="text-muted-foreground text-xs">
             Audits are advisory. This script runs on your machine — read it
             before installing.
@@ -118,6 +132,27 @@ export default async function StatuslinePage({ params }: Props) {
       >
         <ListingPreview spec={row.spec} previewAnsi={row.previewAnsi} />
       </StatuslineEntry>
+
+      <FeedbackSection
+        slug={row.slug}
+        name={row.name}
+        base={siteUrl()}
+        data={{
+          average: feedback.avg,
+          count: feedback.count,
+          reviews: feedback.reviews.map((r) => ({
+            wallet: r.wallet,
+            rating: r.rating,
+            comment: r.comment,
+            at: r.createdAt.toISOString(),
+          })),
+          reports: feedback.reports.map((r) => ({
+            wallet: r.wallet,
+            comment: r.comment,
+            at: r.createdAt.toISOString(),
+          })),
+        }}
+      />
 
       {row.spec && (
         <>

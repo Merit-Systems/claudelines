@@ -46,6 +46,12 @@ export const statuslines = pgTable("statuslines", {
   /** One-paragraph, user-facing summary of what the script does. */
   auditSummary: text("audit_summary"),
   auditModel: text("audit_model"),
+  /** Deterministic red-flag scanner hits recorded at registration. */
+  redFlags: text("red_flags").array().notNull().default([]),
+  /** Delisted: hidden from all public reads and payload/download endpoints. */
+  hidden: boolean("hidden").notNull().default(false),
+  /** Community report tally; a threshold auto-hides pending human review. */
+  reportCount: integer("report_count").notNull().default(0),
   tags: text("tags").array().notNull().default([]),
   installs: integer("installs").notNull().default(0),
   /**
@@ -90,6 +96,28 @@ export const events = pgTable("events", {
   amountUsd: numeric("amount_usd", { precision: 10, scale: 6 })
     .notNull()
     .default("0"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Wallet-signed feedback (SIWX, free). A "review" carries a 0–5 rating and
+ * optional comment (one per wallet per listing, upserted). A "report" is a
+ * text flag (many allowed); enough distinct reporting wallets auto-hides.
+ */
+export const feedback = pgTable("feedback", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  statuslineId: uuid("statusline_id")
+    .notNull()
+    .references(() => statuslines.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["review", "report"] }).notNull(),
+  /** Signing wallet (lowercased). SIWX-proven. */
+  wallet: text("wallet").notNull(),
+  /** 0–5 for reviews, null for reports. */
+  rating: integer("rating"),
+  /** Up to 1000 chars. */
+  comment: text("comment"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

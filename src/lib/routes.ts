@@ -22,6 +22,7 @@ import { HttpError } from "@agentcash/router";
 import { router } from "./router";
 import { statuslineSpecSchema, VARIABLE_NAMES } from "./statusline/spec";
 import { detectCapabilities } from "./statusline/capabilities";
+import { hasHighSeverity, scanRedFlags } from "./statusline/redflags";
 import { auditScript } from "./statusline/audit";
 import {
   fetchTweet,
@@ -38,7 +39,11 @@ import {
   getStatusline,
   listByWallet,
   listStatuslines,
+  addReport,
+  getFeedback,
   recordInstall,
+  setHidden,
+  upsertReview,
   slugTaken,
   type SortKey,
 } from "./db/queries";
@@ -56,6 +61,15 @@ const SCRIPT_REGISTER_PRICE = "0.50";
  */
 const FEE_EVERY_N = 20;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,7}$/;
+// Reject control chars / terminal escapes in fields echoed to CLIs (CWE-150).
+const printable = (max: number) =>
+  z
+    .string()
+    .max(max)
+     
+    .refine((v) => !/[\u0000-\u001f\u007f-\u009f]/.test(v), {
+      message: "Control characters are not allowed",
+    });
 
 const priceString = z
   .string()
@@ -79,6 +93,7 @@ function publicEntry(row: StatuslineRow, includePayload: boolean) {
             verdict: row.auditVerdict,
             summary: row.auditSummary,
             model: row.auditModel,
+            redFlags: row.redFlags,
           }
         : undefined,
     priceUsd: row.priceUsd,
@@ -108,6 +123,11 @@ function callerHash(request: Request): string {
     .update(`${process.env.MPP_SECRET_KEY ?? "statuslines"}:${ip}`)
     .digest("hex")
     .slice(0, 32);
+}
+
+function ensureVisible(row: StatuslineRow): void {
+  if (row.hidden)
+    throw new HttpError("This statusline has been delisted", 410);
 }
 
 function installInstructions(row: StatuslineRow) {
@@ -170,6 +190,7 @@ router
   .handler(async ({ params }) => {
     const row = await getStatusline(params.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
+    ensureVisible(row);
     const entry = publicEntry(row, true);
     if (entry.free) {
       return { ...entry, install: installInstructions(row) };
@@ -189,6 +210,7 @@ router
   .handler(async ({ params, request }) => {
     const row = await getStatusline(params.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
+    ensureVisible(row);
     if (row.kind !== "spec" || !row.spec) {
       throw new HttpError(
         `"${row.slug}" is a script statusline — fetch /api/statuslines/${row.slug}/script instead and REVIEW IT before installing`,
@@ -219,6 +241,7 @@ router
   .handler(async ({ params, request }) => {
     const row = await getStatusline(params.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
+    ensureVisible(row);
     if (row.kind !== "script" || !row.script) {
       throw new HttpError(
         `"${row.slug}" is a data-only spec — fetch /api/statuslines/${row.slug}/spec instead`,
@@ -304,6 +327,7 @@ router
   .handler(async ({ body, wallet }) => {
     const row = await getStatusline(body.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
+    ensureVisible(row);
     await bumpSalesCount(row);
     // Wash-trade guard: self-buys (payer == payout wallet) are served but
     // never counted toward installs or revenue.
@@ -334,8 +358,8 @@ router
 const registerBody = z
   .object({
     slug: z.string().regex(SLUG, 'kebab-case, e.g. "neon-nights"').max(48),
-    name: z.string().min(2).max(48),
-    description: z.string().min(8).max(280),
+    name: printable(48).refine((v) => v.length >= 2, "Too short"),
+    description: printable(280).refine((v) => v.length >= 8, "Too short"),
     /** Data-only spec (kind "spec"). Provide exactly one of spec/script. */
     spec: statuslineSpecSchema.optional(),
     /** Existing statusline uploaded as-is (kind "script"). */
@@ -351,7 +375,7 @@ const registerBody = z
      */
     previewAnsi: z.string().max(8_192).optional(),
     priceUsd: priceString.default("0"),
-    tags: z.array(z.string().min(1).max(24)).max(5).default([]),
+    tags: z.array(printable(24).refine((v) => v.length >= 1, "Empty tag")).max(5).default([]),
   })
   .refine((b) => (b.spec ? !b.script : Boolean(b.script)), {
     message: "Provide exactly one of `spec` (data-only) or `script` (upload as-is)",
@@ -412,6 +436,19 @@ router
         description: body.description,
         author: wallet ?? "unknown",
       });
+      const flags = scanRedFlags(body.script);
+      // Deterministic backstop: a high-severity pattern hit is an automatic
+      // reject regardless of the LLM verdict; medium hits downgrade approve
+      // to caution so the listing carries the warning.
+      if (audit.verdict === "approve" && hasHighSeverity(flags)) {
+        audit.verdict = "reject";
+        audit.risks = [
+          ...audit.risks,
+          ...flags.filter((f) => f.severity === "high").map((f) => f.label),
+        ];
+      } else if (audit.verdict === "approve" && flags.length > 0) {
+        audit.verdict = "caution";
+      }
       if (audit.verdict === "reject") {
         // Deliberate 200: the fee bought the audit, so it settles. The
         // script is simply not listed.
@@ -448,6 +485,7 @@ router
       auditVerdict: audit?.verdict ?? null,
       auditSummary: audit?.summary ?? null,
       auditModel: audit?.model ?? null,
+      redFlags: body.script ? scanRedFlags(body.script).map((f) => `${f.severity}: ${f.label}`) : [],
       tags: body.tags,
       registeredBy: wallet,
     });
@@ -546,6 +584,74 @@ router
     const identity = await getIdentity(params.wallet);
     if (!identity?.verified) return { verified: false };
     return { verified: true, handle: identity.twitterHandle };
+  });
+
+// --- Report & takedown -------------------------------------------------------
+
+router
+  .route({ path: "report", method: "POST" })
+  .siwx()
+  .body(
+    z
+      .object({
+        slug: z.string().regex(SLUG),
+        // review: 0–5 stars (+ optional comment). report: text only.
+        rating: z.coerce.number().int().min(0).max(5).optional(),
+        comment: printable(1000).optional(),
+      })
+      .refine((b) => b.rating !== undefined || (b.comment && b.comment.length >= 3), {
+        message: "Provide a rating (review) or a comment (report)",
+      }),
+  )
+  .inputExample({ slug: "some-slug", rating: 5, comment: "clean and fast" })
+  .description(
+    "Leave signed feedback on a statusline (SIWX, free). Include `rating` (0–5) to post/update your review; include only `comment` to file a report. Enough distinct wallets reporting auto-hides the listing pending review.",
+  )
+  .handler(async ({ body, wallet }) => {
+    if (!wallet) throw new HttpError("Wallet identity required", 401);
+    const row = await getStatusline(body.slug);
+    if (!row) throw new HttpError("Statusline not found", 404);
+    if (body.rating !== undefined) {
+      await upsertReview(row, wallet, body.rating, body.comment ?? null);
+      return { kind: "review", rating: body.rating };
+    }
+    const { hidden } = await addReport(row, wallet, body.comment!);
+    return { kind: "report", hidden };
+  });
+
+router
+  .route({ path: "statuslines/{slug}/feedback", method: "GET" })
+  .unprotected()
+  .description("Reviews (0–5 + comments) and reports for a statusline, with the rating average.")
+  .handler(async ({ params }) => {
+    const row = await getStatusline(params.slug);
+    if (!row) throw new HttpError("Statusline not found", 404);
+    const fb = await getFeedback(row.id);
+    return {
+      average: fb.avg,
+      count: fb.count,
+      reviews: fb.reviews.map((r) => ({
+        wallet: r.wallet,
+        rating: r.rating,
+        comment: r.comment,
+        at: r.createdAt.toISOString(),
+      })),
+      reports: fb.reports.map((r) => ({
+        wallet: r.wallet,
+        comment: r.comment,
+        at: r.createdAt.toISOString(),
+      })),
+    };
+  });
+
+router
+  .route({ path: "admin/delist", method: "POST" })
+  .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
+  .body(z.object({ slug: z.string().regex(SLUG), hidden: z.boolean().default(true) }))
+  .description("Admin: delist or relist a statusline. Requires ADMIN_TOKEN.")
+  .handler(async ({ body }) => {
+    await setHidden(body.slug, body.hidden);
+    return { slug: body.slug, hidden: body.hidden };
   });
 
 // --- Misc --------------------------------------------------------------------
