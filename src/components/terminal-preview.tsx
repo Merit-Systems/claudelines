@@ -2,6 +2,7 @@ import { renderLines, type StyledRun } from "@/lib/statusline/render";
 import { parseAnsi } from "@/lib/statusline/ansi";
 import type { StatuslineSpec, StatuslineVars } from "@/lib/statusline/spec";
 import { DEFAULT_MOCK } from "@/lib/statusline/mock";
+import { ClaudeMark } from "@/components/claude-mark";
 import { cn } from "@/lib/utils";
 
 /**
@@ -147,8 +148,11 @@ export function ListingPreview({
 export function CcFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2 px-4 pt-3 pb-3 font-mono text-[13px]">
-      <div style={{ color: "var(--term-muted)" }}>
-        <span style={{ color: "#d97757" }}>✻</span> Claude Code
+      <div
+        className="flex items-center gap-1.5"
+        style={{ color: "var(--term-muted)" }}
+      >
+        <ClaudeMark /> Claude Code
       </div>
       <div
         className="flex items-center gap-2 rounded-[6px] border px-3 py-2"
