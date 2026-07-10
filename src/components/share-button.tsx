@@ -9,7 +9,8 @@ export function ShareButton({ base }: { base: string }) {
   const host = base.replace(/^https?:\/\//, "");
 
   // A prompt, not a shell command: the agent fetches the skill and follows
-  // it — installs, purchases, and publishing all flow through agentcash.
+  // it. Free installs are plain HTTP; only purchases and publishing pay
+  // via agentcash (x402/MPP).
   const command = `Set up ${host}/skill.md`;
 
   return (

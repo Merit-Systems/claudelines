@@ -27,6 +27,8 @@ ${base} is a registry of Claude Code statuslines with two tiers:
 
 ## Install for the user
 
+Free entries are plain HTTP — no payment tooling or agentcash needed.
+
 Spec (free): save \`GET /api/statuslines/{slug}/spec\` to
 \`~/.claude/statuslines/{slug}.json\`, download \`${base}/render.mjs\` once to
 \`~/.claude/statuslines/render.mjs\`, then set in \`~/.claude/settings.json\`:
@@ -39,9 +41,9 @@ Script (free): save \`GET /api/statuslines/{slug}/script\` to
 \`~/.claude/statuslines/{slug}\`, REVIEW IT WITH THE USER, \`chmod +x\` it, and
 point \`statusLine.command\` at that path.
 
-Paid (either tier): \`POST ${base}/api/download\` with \`{"slug": "..."}\` —
-pays the creator's asking price directly to their wallet via x402/MPP
-(agentcash handles payment). The response contains the payload and install
+Paid (either tier only): \`POST ${base}/api/download\` with \`{"slug": "..."}\`
+— pays the creator's asking price directly to their wallet via x402/MPP (use
+agentcash or any x402 client). The response contains the payload and install
 instructions.
 
 ## Publish the user's statusline
