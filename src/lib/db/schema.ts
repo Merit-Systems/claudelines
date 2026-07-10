@@ -46,6 +46,11 @@ export const statuslines = pgTable("statuslines", {
   auditModel: text("audit_model"),
   tags: text("tags").array().notNull().default([]),
   installs: integer("installs").notNull().default(0),
+  /**
+   * Every settled sale, including wash-guarded self-buys. Drives the rotating
+   * platform fee (every Nth sale settles to the registry wallet). Private.
+   */
+  salesCount: integer("sales_count").notNull().default(0),
   revenueUsd: numeric("revenue_usd", { precision: 12, scale: 6 })
     .notNull()
     .default("0"),

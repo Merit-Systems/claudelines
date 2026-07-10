@@ -147,3 +147,11 @@ export async function recordInstall(
 export async function slugTaken(slug: string): Promise<boolean> {
   return (await getStatusline(slug)) !== null;
 }
+
+/** Counts every settled sale (incl. self-buys) — drives the fee rotation. */
+export async function bumpSalesCount(row: StatuslineRow): Promise<void> {
+  await db()
+    .update(statuslines)
+    .set({ salesCount: sql`${statuslines.salesCount} + 1` })
+    .where(eq(statuslines.id, row.id));
+}

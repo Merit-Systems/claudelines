@@ -1,0 +1,1 @@
+ALTER TABLE "statuslines" ADD COLUMN "sales_count" integer DEFAULT 0 NOT NULL;

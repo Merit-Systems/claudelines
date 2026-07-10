@@ -24,6 +24,7 @@ import { statuslineSpecSchema, VARIABLE_NAMES } from "./statusline/spec";
 import { detectCapabilities } from "./statusline/capabilities";
 import { auditScript } from "./statusline/audit";
 import {
+  bumpSalesCount,
   createStatusline,
   getStatusline,
   listStatuslines,
@@ -38,6 +39,12 @@ const MAX_PRICE_USD = 25;
 const SPEC_REGISTER_PRICE = "0.01";
 /** Script registrations fund an Opus security audit at registration time. */
 const SCRIPT_REGISTER_PRICE = "0.50";
+/**
+ * Platform fee on sales volume, taken as rotating settlement: every Nth sale
+ * of a listing settles to the registry wallet instead of the creator.
+ * N=20 => 5% of volume in expectation. Makes wash-trading cost ~5% + gas.
+ */
+const FEE_EVERY_N = 20;
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,7}$/;
 
@@ -268,22 +275,27 @@ router
     },
     {
       maxPrice: String(MAX_PRICE_USD),
-      // Sale proceeds go straight to the creator's payout wallet.
+      // Sale proceeds go straight to the creator's payout wallet, except
+      // every Nth sale which settles to the registry (the volume fee).
       payTo: async (_request, body) => {
         const slug = (body as { slug?: string } | undefined)?.slug;
         const row = slug ? await getStatusline(slug) : null;
-        return row?.authorWallet ?? process.env.EVM_PAYEE_ADDRESS!;
+        const platform = process.env.EVM_PAYEE_ADDRESS!;
+        if (!row?.authorWallet) return platform;
+        const feeSlot = (row.salesCount + 1) % FEE_EVERY_N === 0;
+        return feeSlot ? platform : row.authorWallet;
       },
     },
   )
   .body(downloadBody)
   .inputExample({ slug: "sunset-boulevard" })
   .description(
-    "Buy a paid statusline at the creator's asking price (paid to the creator's wallet). Returns the payload (spec or script) plus install instructions. For script-kind entries, REVIEW the script before installing.",
+    "Buy a paid statusline at the creator's asking price. Payment settles directly to the creator's wallet (a rotating 1-in-20 sale settles to the registry — the 5% platform fee). Returns the payload plus install instructions. For script-kind entries, REVIEW the script before installing.",
   )
   .handler(async ({ body, wallet }) => {
     const row = await getStatusline(body.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
+    await bumpSalesCount(row);
     // Wash-trade guard: self-buys (payer == payout wallet) are served but
     // never counted toward installs or revenue.
     const selfBuy =
