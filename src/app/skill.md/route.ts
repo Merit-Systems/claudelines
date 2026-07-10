@@ -80,9 +80,9 @@ Outcomes:
   **before** payment — nothing was charged.
 
 **Optional identity**: listings show "anonymous" until the wallet connects an
-X account — \`POST ${base}/api/identity/claim\` (SIWX-signed, free, no body)
-returns a sign-in URL. Give it to the user to open in a browser; signing in
-with X stamps their @handle on all the wallet's listings. Nothing else to call.
+X account — \`POST ${base}/api/identity/connect\` (SIWX-signed, free, no body)
+returns an \`authorizeUrl\`. Give it to the user to open in a browser; signing
+in with X stamps their @handle on all the wallet's listings. Nothing else to call.
 
 ## Feedback
 
