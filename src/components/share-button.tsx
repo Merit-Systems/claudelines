@@ -29,7 +29,7 @@ export function ShareButton({ base }: { base: string }) {
         className="group flex h-10 max-w-full cursor-pointer items-center gap-2.5 border px-4 font-mono text-sm transition-colors hover:bg-muted"
       >
         <span className="truncate">
-          {copied ? "Copied — paste into Claude Code" : `Publish my statusline to ${host}`}
+          {copied ? "Copied — paste into Claude Code" : `Set up ${host}/llms.txt`}
         </span>
         {copied ? (
           <Check className="text-primary size-4 shrink-0" />
