@@ -166,3 +166,12 @@ export async function adoptVerifiedAuthor(
     .set({ author: `@${handle}` })
     .where(eq(statuslines.authorWallet, wallet.toLowerCase()));
 }
+
+/** Everything a creator wallet has published. */
+export async function listByWallet(wallet: string): Promise<StatuslineRow[]> {
+  return db()
+    .select()
+    .from(statuslines)
+    .where(eq(statuslines.authorWallet, wallet.toLowerCase()))
+    .orderBy(desc(statuslines.installs), desc(statuslines.createdAt));
+}

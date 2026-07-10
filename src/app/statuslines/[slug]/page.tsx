@@ -110,6 +110,7 @@ export default async function StatuslinePage({ params }: Props) {
         slug={row.slug}
         name={row.name}
         author={row.author}
+        wallet={row.authorWallet}
         installs={`${formatCount(row.installs)} installs`}
         kind={row.kind}
         priceUsd={row.priceUsd}

@@ -36,6 +36,7 @@ import {
   bumpSalesCount,
   createStatusline,
   getStatusline,
+  listByWallet,
   listStatuslines,
   recordInstall,
   slugTaken,
@@ -350,7 +351,6 @@ const registerBody = z
      */
     previewAnsi: z.string().max(8_192).optional(),
     priceUsd: priceString.default("0"),
-    author: z.string().min(1).max(48).default("anonymous"),
     tags: z.array(z.string().min(1).max(24)).max(5).default([]),
   })
   .refine((b) => (b.spec ? !b.script : Boolean(b.script)), {
@@ -374,7 +374,6 @@ router
     name: "Neon Nights",
     description: "Synthwave purple-to-cyan powerline with cost tracking.",
     priceUsd: "0.10",
-    author: "vibes.eth",
     tags: ["powerline", "synthwave"],
     spec: {
       version: 1,
@@ -411,7 +410,7 @@ router
         script: body.script,
         name: body.name,
         description: body.description,
-        author: body.author,
+        author: wallet ?? "unknown",
       });
       if (audit.verdict === "reject") {
         // Deliberate 200: the fee bought the audit, so it settles. The
@@ -432,7 +431,8 @@ router
       slug: body.slug,
       name: body.name,
       description: body.description,
-      author: identity?.verified ? `@${identity.twitterHandle}` : body.author,
+      // Twitter is the only identity: @handle when verified, else anonymous.
+      author: identity?.verified ? `@${identity.twitterHandle}` : "anonymous",
       // The registering wallet is the payout wallet and the identity anchor.
       authorWallet: wallet ? wallet.toLowerCase() : null,
       priceUsd: Number(body.priceUsd) === 0 ? "0" : body.priceUsd,
@@ -520,6 +520,22 @@ router
     await markVerified(wallet);
     await adoptVerifiedAuthor(wallet, identity.twitterHandle);
     return { verified: true, handle: identity.twitterHandle };
+  });
+
+router
+  .route({ path: "creators/{wallet}", method: "GET" })
+  .unprotected()
+  .description("A creator wallet's verified identity (if any) and everything they've published.")
+  .handler(async ({ params }) => {
+    const [rows, identity] = await Promise.all([
+      listByWallet(params.wallet),
+      getIdentity(params.wallet),
+    ]);
+    return {
+      wallet: params.wallet.toLowerCase(),
+      identity: identity?.verified ? { handle: identity.twitterHandle } : null,
+      statuslines: rows.map((r) => publicEntry(r, false)),
+    };
   });
 
 router

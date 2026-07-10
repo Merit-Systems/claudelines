@@ -16,3 +16,7 @@ export function formatCount(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
 }
+
+export function shortWallet(addr: string): string {
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}

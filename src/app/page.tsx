@@ -59,6 +59,7 @@ export default async function HomePage({
                 slug={row.slug}
                 name={row.name}
                 author={row.author}
+                wallet={row.authorWallet}
                 installs={
                   activeSort === "revenue"
                     ? `$${Number(row.revenueUsd).toFixed(2)} earned`

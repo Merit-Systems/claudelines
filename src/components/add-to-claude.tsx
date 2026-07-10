@@ -23,6 +23,7 @@ export function StatuslineEntry({
   slug,
   name,
   author,
+  wallet,
   installs,
   kind,
   priceUsd,
@@ -33,7 +34,10 @@ export function StatuslineEntry({
   rank?: number;
   slug: string;
   name: string;
+  /** "@handle" when the creator verified an X identity; anything else is ignored. */
   author: string;
+  /** Creator wallet, when known — links the ?-avatar to their creator page. */
+  wallet?: string | null;
   installs: string;
   kind: "spec" | "script";
   priceUsd: string;
@@ -128,15 +132,20 @@ export function StatuslineEntry({
           >
             {author} ✓
           </a>
+        ) : wallet ? (
+          <Link
+            href={`/creators/${wallet}`}
+            title="Unverified creator — view their other statuslines"
+            className="bg-muted text-muted-foreground hover:text-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] transition-colors"
+          >
+            ?
+          </Link>
         ) : (
           <span
-            className="text-muted-foreground flex min-w-0 items-center gap-1.5 truncate"
-            title="Unclaimed — the creator hasn't verified an identity"
+            title="Unverified creator"
+            className="bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px]"
           >
-            <span className="bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px]">
-              ?
-            </span>
-            {author}
+            ?
           </span>
         )}
         <span className="text-muted-foreground ml-auto shrink-0 font-mono">
