@@ -23,7 +23,7 @@ export default async function HomePage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col divide-y border">
           {rows.map((row, i) => (
             <li key={row.slug}>
               <StatuslineEntry

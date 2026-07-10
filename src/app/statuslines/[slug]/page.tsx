@@ -106,6 +106,7 @@ export default async function StatuslinePage({ params }: Props) {
       )}
 
       <StatuslineEntry
+        className="border"
         slug={row.slug}
         name={row.name}
         author={row.author}

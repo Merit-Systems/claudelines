@@ -98,7 +98,7 @@ export function StatuslineEntry({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2.5 rounded-xl border p-3",
+        "flex flex-col gap-2.5 p-3",
         className,
       )}
     >
