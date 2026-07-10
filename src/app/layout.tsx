@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Navbar } from "@/components/navbar";
+import { PreviewThemeProvider } from "@/components/preview-theme";
 import { siteUrl } from "@/lib/site";
 
 import "./globals.css";
@@ -32,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geist.variable} ${geistMono.variable} antialiased`}>
+        <PreviewThemeProvider>
         <div className="flex min-h-svh flex-col">
           <Navbar />
           <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-12 px-4 py-12">
@@ -62,6 +64,7 @@ export default function RootLayout({
             </div>
           </footer>
         </div>
+        </PreviewThemeProvider>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Logo } from "@/components/logo";
+import { GlobalPreviewThemeToggle } from "@/components/preview-theme";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
@@ -23,6 +24,8 @@ export function Navbar() {
             </Link>
           </nav>
         </div>
+        <div className="flex items-center gap-2">
+        <GlobalPreviewThemeToggle />
         <a
           href="https://github.com/Merit-Systems/statuslines"
           target="_blank"
@@ -35,6 +38,7 @@ export function Navbar() {
             Star on GitHub
           </Button>
         </a>
+        </div>
       </div>
     </header>
   );

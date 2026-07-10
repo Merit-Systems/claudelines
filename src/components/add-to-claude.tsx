@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Moon, Plus, Sun } from "lucide-react";
+import { Check, ChevronDown, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CopyBlock } from "@/components/copy-block";
-import {
-  CcFrame,
-  TERM_THEMES,
-  type TermTheme,
-} from "@/components/terminal-preview";
+import { CcFrame, TERM_THEMES } from "@/components/terminal-preview";
+import { usePreviewTheme } from "@/components/preview-theme";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,7 +45,7 @@ export function StatuslineEntry({
   const [manualOpen, setManualOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [cc, setCc] = useState(false);
-  const [theme, setTheme] = useState<TermTheme>("dark");
+  const { theme } = usePreviewTheme();
   const free = Number(priceUsd) === 0;
   const price = `$${Number(priceUsd).toFixed(2)}`;
   const script = kind === "script";
@@ -125,20 +122,6 @@ export function StatuslineEntry({
         <span className="text-muted-foreground ml-auto shrink-0 font-mono">
           {installs}
         </span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="shrink-0"
-          aria-label="Toggle preview theme"
-          title="Preview on a light/dark terminal"
-          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-        >
-          {theme === "dark" ? (
-            <Sun className="size-3.5" />
-          ) : (
-            <Moon className="size-3.5" />
-          )}
-        </Button>
         <div className="flex shrink-0 items-center">
           <Button
             variant="outline"
