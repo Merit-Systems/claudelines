@@ -45,7 +45,10 @@ export async function auditScript(input: {
       status: 503,
     });
   }
-  const model = process.env.AUDIT_MODEL ?? "claude-opus-4-8";
+  // Sonnet audits scripts accurately at ~$0.02–0.05/audit, keeping the flat
+  // submission fee profitable even on a max-size script. Override with
+  // AUDIT_MODEL for a pricier deep audit.
+  const model = process.env.AUDIT_MODEL ?? "claude-sonnet-4-5";
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",

@@ -1,19 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Download, FileCode2, ShieldCheck } from "lucide-react";
+import { Download, ShieldCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CopyBlock } from "@/components/copy-block";
 import { StatuslineEntry } from "@/components/add-to-claude";
 import { FeedbackSection } from "@/components/feedback-section";
-import {
-  ListingPreview,
-  StatuslineRow,
-  TerminalPreview,
-} from "@/components/terminal-preview";
+import { ListingPreview, TerminalPreview } from "@/components/terminal-preview";
 import { getStatusline, getFeedback } from "@/lib/db/queries";
-import { MOCK_SESSIONS } from "@/lib/statusline/mock";
 import { siteUrl } from "@/lib/site";
 import { formatCount, formatUsd } from "@/lib/utils";
 
@@ -36,7 +31,6 @@ export default async function StatuslinePage({ params }: Props) {
   if (!row) notFound();
 
   const free = Number(row.priceUsd) === 0;
-  const isScript = row.kind === "script";
   const feedback = await getFeedback(row.id);
 
   return (
@@ -44,16 +38,14 @@ export default async function StatuslinePage({ params }: Props) {
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-medium tracking-tight">{row.name}</h1>
-          {isScript ? (
-            <Badge variant="outline">
-              <FileCode2 />
-              script · audited
-            </Badge>
-          ) : (
+          {row.auditVerdict === "approve" && (
             <Badge variant="success">
               <ShieldCheck />
-              data-only
+              audited
             </Badge>
+          )}
+          {row.auditVerdict === "caution" && (
+            <Badge variant="outline">audited · caution</Badge>
           )}
           <Badge variant={free ? "secondary" : "success"}>
             {formatUsd(row.priceUsd)}
@@ -74,9 +66,9 @@ export default async function StatuslinePage({ params }: Props) {
         </div>
       </div>
 
-      <TerminalPreview spec={row.spec} previewAnsi={row.previewAnsi} />
+      <TerminalPreview previewAnsi={row.previewAnsi} />
 
-      {isScript && row.auditSummary && (
+      {row.auditSummary && (
         <div className="flex flex-col gap-2 rounded-xl border p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <ShieldCheck className="text-primary size-4" />
@@ -126,40 +118,13 @@ export default async function StatuslinePage({ params }: Props) {
         author={row.author}
         wallet={row.authorWallet}
         installs={`${formatCount(row.installs)} installs`}
-        kind={row.kind}
         priceUsd={row.priceUsd}
         base={siteUrl()}
       >
-        <ListingPreview spec={row.spec} previewAnsi={row.previewAnsi} />
+        <ListingPreview previewAnsi={row.previewAnsi} />
       </StatuslineEntry>
 
-      {row.spec && (
-        <>
-          <Separator />
-          <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-medium">Across sessions</h2>
-            <div className="flex flex-col gap-2.5 rounded-xl border border-white/10 bg-[#1a1a1a] px-4 py-4">
-              {MOCK_SESSIONS.map((s) => (
-                <div key={s.label} className="flex flex-col gap-1">
-                  <span className="font-mono text-[10px] text-[#525252]">
-                    {s.label}
-                  </span>
-                  <StatuslineRow spec={row.spec!} vars={s.vars} />
-                </div>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
-
-      {free && row.spec && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium">The spec (this is all of it)</h2>
-          <CopyBlock text={JSON.stringify(row.spec, null, 2)} />
-        </section>
-      )}
-
-      {free && isScript && row.script && (
+      {free && row.script && (
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium">
             The script — read it before you run it

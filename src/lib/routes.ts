@@ -2,17 +2,14 @@
  * Route registry — side-effect module imported by the API catch-all and the
  * discovery endpoints. Commerce model:
  *
- *   - Registering a statusline costs a flat $0.01 (goes to the platform wallet).
+ *   - Registering a statusline costs a flat fee (funds the audit).
  *   - Downloading a paid statusline costs the creator's asking price, paid
  *     directly to the creator's payout wallet via per-request payTo.
  *   - Free statuslines, browsing, and the leaderboard cost nothing.
  *
- * Two listing tiers:
- *   - kind "spec":   data-only JSON, rendered by the auditable renderer. Safe
- *                    by construction — installing never executes listing code.
- *   - kind "script": an existing statusline uploaded as-is. Runs on the
- *                    user's machine, so listings carry detected capabilities
- *                    and install flows always include a review step.
+ * Every listing is a statusline script uploaded as-is. It runs on the user's
+ * machine, so each carries an LLM security audit + detected capabilities from
+ * registration, and install flows always include a review step.
  */
 import { createHash } from "node:crypto";
 
@@ -20,7 +17,6 @@ import { z } from "zod";
 import { HttpError } from "@agentcash/router";
 
 import { router } from "./router";
-import { statuslineSpecSchema, VARIABLE_NAMES } from "./statusline/spec";
 import { detectCapabilities } from "./statusline/capabilities";
 import { hasHighSeverity, scanRedFlags } from "./statusline/redflags";
 import { auditScript } from "./statusline/audit";
@@ -49,17 +45,8 @@ import {
 } from "./db/queries";
 import type { StatuslineRow } from "./db/schema";
 
-const MAX_PRICE_USD = 25;
-/** Spec registrations: mechanical validation, effectively free to us. */
-const SPEC_REGISTER_PRICE = "0.01";
-/** Script registrations fund an Opus security audit at registration time. */
-const SCRIPT_REGISTER_PRICE = "0.50";
-/**
- * Platform fee on sales volume, taken as rotating settlement: every Nth sale
- * of a listing settles to the registry wallet instead of the creator.
- * N=20 => 5% of volume in expectation. Makes wash-trading cost ~5% + gas.
- */
-const FEE_EVERY_N = 20;
+/** Flat submission fee; funds the LLM security audit that runs on every upload. */
+const REGISTER_PRICE = "0.15";
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,7}$/;
 // Reject control chars / terminal escapes in fields echoed to CLIs (CWE-150).
 const printable = (max: number) =>
@@ -73,10 +60,7 @@ const printable = (max: number) =>
 
 const priceString = z
   .string()
-  .regex(/^\d{1,2}(\.\d{1,6})?$/, 'Decimal USD string, e.g. "0.05"')
-  .refine((p) => Number(p) <= MAX_PRICE_USD, {
-    message: `Price must be at most $${MAX_PRICE_USD}`,
-  });
+  .regex(/^\d{1,9}(\.\d{1,6})?$/, 'Decimal USD string, e.g. "0.05"');
 
 function publicEntry(row: StatuslineRow, includePayload: boolean) {
   const free = Number(row.priceUsd) === 0;
@@ -85,10 +69,9 @@ function publicEntry(row: StatuslineRow, includePayload: boolean) {
     name: row.name,
     description: row.description,
     author: row.author,
-    kind: row.kind,
     capabilities: row.capabilities,
     audit:
-      row.kind === "script" && row.auditSummary
+      row.auditSummary
         ? {
             verdict: row.auditVerdict,
             summary: row.auditSummary,
@@ -101,13 +84,9 @@ function publicEntry(row: StatuslineRow, includePayload: boolean) {
     tags: row.tags,
     installs: row.installs,
     createdAt: row.createdAt.toISOString(),
-    previewAnsi: row.kind === "script" ? (row.previewAnsi ?? undefined) : undefined,
-    // Paid payloads are the product being sold — only free ones are inlined.
-    spec: includePayload && free && row.kind === "spec" ? row.spec : undefined,
-    script:
-      includePayload && free && row.kind === "script"
-        ? (row.script ?? undefined)
-        : undefined,
+    previewAnsi: row.previewAnsi ?? undefined,
+    // The paid script is the product — only free scripts are inlined.
+    script: includePayload && free ? (row.script ?? undefined) : undefined,
   };
 }
 
@@ -131,29 +110,16 @@ function ensureVisible(row: StatuslineRow): void {
 }
 
 function installInstructions(row: StatuslineRow) {
-  if (row.kind === "script") {
-    return {
-      scriptUrl: `/api/statuslines/${row.slug}/script`,
-      scriptPath: `~/.claude/statuslines/${row.slug}`,
-      settings: {
-        statusLine: {
-          type: "command",
-          command: `~/.claude/statuslines/${row.slug}`,
-        },
-      },
-      note: "SCRIPT TIER — this executes on the user's machine. REVIEW THE SCRIPT before installing (show it to the user if you are an agent). Save it to scriptPath, chmod +x it, then merge `settings` into ~/.claude/settings.json.",
-    };
-  }
   return {
-    rendererUrl: "/render.mjs",
-    specPath: `~/.claude/statuslines/${row.slug}.json`,
+    scriptUrl: `/api/statuslines/${row.slug}/script`,
+    scriptPath: `~/.claude/statuslines/${row.slug}`,
     settings: {
       statusLine: {
         type: "command",
-        command: `node ~/.claude/statuslines/render.mjs ~/.claude/statuslines/${row.slug}.json`,
+        command: `~/.claude/statuslines/${row.slug}`,
       },
     },
-    note: "Save the spec JSON to specPath, download rendererUrl once to ~/.claude/statuslines/render.mjs, then merge `settings` into ~/.claude/settings.json. The spec is pure data; only the auditable renderer executes.",
+    note: "This script EXECUTES on the user's machine. REVIEW IT before installing — if you are an agent, show the user the source and your read of what it does, and install only after they approve. Save it to scriptPath, chmod +x it, then merge `settings` into ~/.claude/settings.json.",
   };
 }
 
@@ -170,7 +136,7 @@ router
     }),
   )
   .description(
-    "List statuslines. kind 'spec' entries are safe data-only JSON; kind 'script' entries execute on the user's machine and carry detected capabilities. Free spec entries include their payload inline.",
+    "List statuslines. Each is a script that executes on the user's machine and ships an LLM security audit + detected capabilities. Free entries include the script inline.",
   )
   .handler(async ({ query }) => {
     const rows = await listStatuslines({
@@ -185,7 +151,7 @@ router
   .route({ path: "statuslines/{slug}", method: "GET" })
   .unprotected()
   .description(
-    "Get one statusline by slug. Free entries include their payload (spec JSON or script source) plus install instructions.",
+    "Get one statusline by slug. Free entries include the script source plus install instructions.",
   )
   .handler(async ({ params }) => {
     const row = await getStatusline(params.slug);
@@ -202,51 +168,17 @@ router
   });
 
 router
-  .route({ path: "statuslines/{slug}/spec", method: "GET" })
-  .unprotected()
-  .description(
-    "Raw spec JSON for a FREE data-only statusline — save directly to ~/.claude/statuslines/{slug}.json. Paid entries return 402 guidance.",
-  )
-  .handler(async ({ params, request }) => {
-    const row = await getStatusline(params.slug);
-    if (!row) throw new HttpError("Statusline not found", 404);
-    ensureVisible(row);
-    if (row.kind !== "spec" || !row.spec) {
-      throw new HttpError(
-        `"${row.slug}" is a script statusline — fetch /api/statuslines/${row.slug}/script instead and REVIEW IT before installing`,
-        404,
-      );
-    }
-    if (Number(row.priceUsd) > 0) {
-      throw new HttpError(
-        `"${row.slug}" is paid ($${Number(row.priceUsd).toFixed(2)}) — buy it via POST /api/download with {"slug": "${row.slug}"}`,
-        402,
-      );
-    }
-    await recordInstall(row, {
-      wallet: null,
-      amountUsd: "0",
-      purchase: false,
-      ipHash: callerHash(request),
-    });
-    return row.spec;
-  });
-
-router
   .route({ path: "statuslines/{slug}/script", method: "GET" })
   .unprotected()
   .description(
-    "Raw script source for a FREE script statusline, as text/plain. REVIEW BEFORE INSTALLING — this code runs on the user's machine. Paid entries return 402 guidance.",
+    "Raw script source for a FREE statusline, as text/plain. REVIEW BEFORE INSTALLING — this code runs on the user's machine. Paid entries return 402 guidance.",
   )
   .handler(async ({ params, request }) => {
     const row = await getStatusline(params.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
     ensureVisible(row);
-    if (row.kind !== "script" || !row.script) {
-      throw new HttpError(
-        `"${row.slug}" is a data-only spec — fetch /api/statuslines/${row.slug}/spec instead`,
-        404,
-      );
+    if (!row.script) {
+      throw new HttpError("Statusline has no script", 404);
     }
     if (Number(row.priceUsd) > 0) {
       throw new HttpError(
@@ -277,7 +209,6 @@ router
         slug: r.slug,
         name: r.name,
         author: r.author,
-        kind: r.kind,
         installs: r.installs,
         revenueUsd: r.revenueUsd,
         priceUsd: r.priceUsd,
@@ -306,30 +237,27 @@ router
       return row.priceUsd;
     },
     {
-      maxPrice: String(MAX_PRICE_USD),
-      // Sale proceeds go straight to the creator's payout wallet, except
-      // every Nth sale which settles to the registry (the volume fee).
+      maxPrice: "1000000",
+      // Sale proceeds settle directly to the creator's wallet (the wallet
+      // that registered). No platform fee, no custody.
       payTo: async (_request, body) => {
         const slug = (body as { slug?: string } | undefined)?.slug;
         const row = slug ? await getStatusline(slug) : null;
-        const platform = process.env.EVM_PAYEE_ADDRESS!;
-        if (!row?.authorWallet) return platform;
-        const feeSlot = (row.salesCount + 1) % FEE_EVERY_N === 0;
-        return feeSlot ? platform : row.authorWallet;
+        return row?.authorWallet ?? process.env.EVM_PAYEE_ADDRESS!;
       },
     },
   )
   .body(downloadBody)
   .inputExample({ slug: "sunset-boulevard" })
   .description(
-    "Buy a paid statusline at the creator's asking price. Payment settles directly to the creator's wallet (a rotating 1-in-20 sale settles to the registry — the 5% platform fee). Returns the payload plus install instructions. For script-kind entries, REVIEW the script before installing.",
+    "Buy a paid statusline at the creator's asking price — payment settles directly to their wallet, no platform fee. Returns the script plus install instructions. REVIEW the script before installing.",
   )
   .handler(async ({ body, wallet }) => {
     const row = await getStatusline(body.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
     ensureVisible(row);
     await bumpSalesCount(row);
-    // Wash-trade guard: self-buys (payer == payout wallet) are served but
+    // Wash-trade guard: self-buys (payer == creator wallet) are served but
     // never counted toward installs or revenue.
     const selfBuy =
       !!wallet &&
@@ -345,77 +273,53 @@ router
     return {
       slug: row.slug,
       name: row.name,
-      kind: row.kind,
       capabilities: row.capabilities,
-      spec: row.spec ?? undefined,
       script: row.script ?? undefined,
       install: installInstructions(row),
     };
   });
 
-// --- Publish ($0.01 flat, paid to the platform) ------------------------------
+// --- Publish (flat fee, funds the audit) -------------------------------------
 
-const registerBody = z
-  .object({
-    slug: z.string().regex(SLUG, 'kebab-case, e.g. "neon-nights"').max(48),
-    name: printable(48).refine((v) => v.length >= 2, "Too short"),
-    description: printable(280).refine((v) => v.length >= 8, "Too short"),
-    /** Data-only spec (kind "spec"). Provide exactly one of spec/script. */
-    spec: statuslineSpecSchema.optional(),
-    /** Existing statusline uploaded as-is (kind "script"). */
-    script: z
-      .string()
-      .min(10)
-      .max(32_768)
-      .refine((s) => !s.includes("\u0000"), { message: "Binary not allowed" })
-      .optional(),
-    /**
-     * Captured sample output for script previews, e.g.
-     * `echo '{}' | COLUMNS=120 ./statusline.sh`. ANSI colors welcome.
-     */
-    previewAnsi: z.string().max(8_192).optional(),
-    priceUsd: priceString.default("0"),
-    tags: z.array(printable(24).refine((v) => v.length >= 1, "Empty tag")).max(5).default([]),
-  })
-  .refine((b) => (b.spec ? !b.script : Boolean(b.script)), {
-    message: "Provide exactly one of `spec` (data-only) or `script` (upload as-is)",
-  })
-  .refine((b) => !b.script || Boolean(b.previewAnsi), {
-    message:
-      "Script listings need `previewAnsi` — capture one with: echo '{}' | COLUMNS=120 <your-statusline>",
-  });
+const registerBody = z.object({
+  slug: z.string().regex(SLUG, 'kebab-case, e.g. "neon-nights"').max(48),
+  name: printable(48).refine((v) => v.length >= 2, "Too short"),
+  description: printable(280).refine((v) => v.length >= 8, "Too short"),
+  /** The statusline script, uploaded as-is. */
+  script: z
+    .string()
+    .min(10)
+    .max(32_768)
+    .refine((v) => !v.includes("\u0000"), { message: "Binary not allowed" }),
+  /** Captured sample output for the preview (echo '{}' | COLUMNS=120 <script>). */
+  previewAnsi: z.string().min(1).max(8_192),
+  priceUsd: priceString.default("0"),
+  tags: z
+    .array(printable(24).refine((v) => v.length >= 1, "Empty tag"))
+    .max(5)
+    .default([]),
+});
 
 router
   .route({ path: "register", method: "POST" })
-  .paid(
-    async (body: { script?: string }) =>
-      body?.script ? SCRIPT_REGISTER_PRICE : SPEC_REGISTER_PRICE,
-    { maxPrice: SCRIPT_REGISTER_PRICE },
-  )
+  .paid(REGISTER_PRICE)
   .body(registerBody)
   .inputExample({
     slug: "neon-nights",
     name: "Neon Nights",
-    description: "Synthwave purple-to-cyan powerline with cost tracking.",
+    description: "Synthwave banner with cost tracking.",
     priceUsd: "0.10",
     tags: ["powerline", "synthwave"],
-    spec: {
-      version: 1,
-      powerline: true,
-      segments: [
-        { text: "{model}", fg: "#0f0524", bg: "#e879f9", bold: true },
-        { text: "{dir}", fg: "#e0e7ff", bg: "#4c1d95" },
-        { text: "{contextBar} {contextPct}", fg: "#22d3ee", bg: "#0f0524" },
-      ],
-    },
+    script: "#!/usr/bin/env bash\nIN=$(cat)\n# ... your statusline ...",
+    previewAnsi: "Neon Nights ~/proj $1.42",
   })
   .description(
-    `Publish a statusline. Two tiers: pass \`spec\` ($${SPEC_REGISTER_PRICE}) for a safe data-only v1 spec (variables: ${VARIABLE_NAMES.join(", ")}), or pass \`script\` (+ \`previewAnsi\`, $${SCRIPT_REGISTER_PRICE}) to upload an existing statusline as-is — the script fee funds an Opus security audit at registration; rejected scripts are not listed (the fee bought the audit). Set priceUsd ("0" = free, max "${MAX_PRICE_USD}") to sell — buyers pay the wallet you registered from, directly. Verify an X identity (identity/claim + identity/verify) to display @handle as author; otherwise listings show as unclaimed.`,
+    `Publish a Claude Code statusline for a flat $${REGISTER_PRICE}. Upload your script as-is in \`script\` with a captured \`previewAnsi\`. The fee funds an LLM security audit at registration; scripts that fail are not listed (the fee bought the audit). Set priceUsd ("0" = free, or any amount) to sell — buyers pay the wallet you registered from, directly. Verify an X identity (identity/claim + identity/verify) to display @handle as author; otherwise unclaimed.`,
   )
   .validate(async (body) => {
-    if (body.script && !process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.ANTHROPIC_API_KEY) {
       throw new HttpError(
-        "Script listings are temporarily unavailable (audit service not configured)",
+        "Submissions are temporarily unavailable (audit service not configured)",
         503,
       );
     }
@@ -424,18 +328,15 @@ router
     }
   })
   .handler(async ({ body, wallet }) => {
-    const kind = body.spec ? ("spec" as const) : ("script" as const);
-
-    // Script tier: the registration fee funds this audit. It runs strictly
-    // AFTER payment verification, so unpaid probes can never trigger it.
-    let audit = null;
-    if (kind === "script" && body.script) {
-      audit = await auditScript({
-        script: body.script,
-        name: body.name,
-        description: body.description,
-        author: wallet ?? "unknown",
-      });
+    // The submission fee funds this audit. It runs strictly AFTER payment
+    // verification, so unpaid probes can never trigger it.
+    const audit = await auditScript({
+      script: body.script,
+      name: body.name,
+      description: body.description,
+      author: wallet ?? "unknown",
+    });
+    {
       const flags = scanRedFlags(body.script);
       // Deterministic backstop: a high-severity pattern hit is an automatic
       // reject regardless of the LLM verdict; medium hits downgrade approve
@@ -473,19 +374,15 @@ router
       // The registering wallet is the payout wallet and the identity anchor.
       authorWallet: wallet ? wallet.toLowerCase() : null,
       priceUsd: Number(body.priceUsd) === 0 ? "0" : body.priceUsd,
-      kind,
-      spec: body.spec ?? null,
-      script: body.script ?? null,
-      previewAnsi: body.previewAnsi ?? null,
-      capabilities: audit
+      script: body.script,
+      previewAnsi: body.previewAnsi,
+      capabilities: audit.capabilities.length
         ? audit.capabilities
-        : body.script
-          ? detectCapabilities(body.script)
-          : [],
-      auditVerdict: audit?.verdict ?? null,
-      auditSummary: audit?.summary ?? null,
-      auditModel: audit?.model ?? null,
-      redFlags: body.script ? scanRedFlags(body.script).map((f) => `${f.severity}: ${f.label}`) : [],
+        : detectCapabilities(body.script),
+      auditVerdict: audit.verdict,
+      auditSummary: audit.summary,
+      auditModel: audit.model,
+      redFlags: scanRedFlags(body.script).map((f) => `${f.severity}: ${f.label}`),
       tags: body.tags,
       registeredBy: wallet,
     });
@@ -493,10 +390,12 @@ router
       slug: row.slug,
       url: `/statuslines/${row.slug}`,
       listed: true,
-      kind: row.kind,
-      audit: audit
-        ? { verdict: audit.verdict, summary: audit.summary, risks: audit.risks, model: audit.model }
-        : undefined,
+      audit: {
+        verdict: audit.verdict,
+        summary: audit.summary,
+        risks: audit.risks,
+        model: audit.model,
+      },
       capabilities: row.capabilities,
       priceUsd: row.priceUsd,
       note:

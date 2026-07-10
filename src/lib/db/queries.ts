@@ -1,21 +1,27 @@
-import { and, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, or, sql } from "drizzle-orm";
 
 import { db, events, feedback, statuslines, type StatuslineRow } from "./index";
-import type { StatuslineSpec } from "../statusline/spec";
 
 export type SortKey = "installs" | "newest" | "revenue";
+export type SortDirection = "asc" | "desc";
 
 export async function listStatuslines(
-  opts: { q?: string; sort?: SortKey; limit?: number } = {},
+  opts: {
+    q?: string;
+    sort?: SortKey;
+    direction?: SortDirection;
+    limit?: number;
+  } = {},
 ): Promise<StatuslineRow[]> {
-  const { q, sort = "installs", limit = 60 } = opts;
+  const { q, sort = "installs", direction = "desc", limit = 60 } = opts;
 
-  const order =
+  const orderColumn =
     sort === "newest"
-      ? desc(statuslines.createdAt)
+      ? statuslines.createdAt
       : sort === "revenue"
-        ? desc(statuslines.revenueUsd)
-        : desc(statuslines.installs);
+        ? statuslines.revenueUsd
+        : statuslines.installs;
+  const order = direction === "asc" ? asc(orderColumn) : desc(orderColumn);
 
   return db()
     .select()
@@ -63,9 +69,7 @@ export async function createStatusline(input: {
   author: string;
   authorWallet: string | null;
   priceUsd: string;
-  kind: "spec" | "script";
-  spec: StatuslineSpec | null;
-  script: string | null;
+  script: string;
   previewAnsi: string | null;
   capabilities: string[];
   auditVerdict: string | null;
@@ -84,8 +88,7 @@ export async function createStatusline(input: {
       author: input.author,
       authorWallet: input.authorWallet,
       priceUsd: input.priceUsd,
-      kind: input.kind,
-      spec: input.spec,
+      kind: "script",
       script: input.script,
       previewAnsi: input.previewAnsi,
       capabilities: input.capabilities,

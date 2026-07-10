@@ -70,11 +70,10 @@ export default async function CreatorPage({ params }: Props) {
               author={row.author}
               wallet={row.authorWallet}
               installs={`${formatCount(row.installs)} installs`}
-              kind={row.kind}
               priceUsd={row.priceUsd}
               base={base}
             >
-              <ListingPreview spec={row.spec} previewAnsi={row.previewAnsi} />
+              <ListingPreview previewAnsi={row.previewAnsi} />
             </StatuslineEntry>
           </li>
         ))}

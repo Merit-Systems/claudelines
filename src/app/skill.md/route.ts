@@ -7,60 +7,66 @@ name: claudelines
 description: Browse, install, publish, and sell Claude Code statuslines via ${base}. Use when the user wants a new statusline, wants to share or sell their current statusline, asks about the bar at the bottom of Claude Code, or mentions claudelines.com.
 ---
 
-# Statuslines registry
+# ClaudeLines — Claude Code statusline registry
 
-${base} is a registry of Claude Code statuslines with two tiers:
+${base} (ClaudeLines) is a registry of Claude Code statuslines. Every listing
+is a **script** — a command Claude Code runs on each repaint. It executes on
+the user's machine with their privileges, so treat installing one like any
+third-party script.
 
-- **spec** — data-only JSON rendered by one auditable renderer (\`${base}/render.mjs\`).
-  Safe to install without review: a spec cannot execute anything.
-- **script** — an existing statusline uploaded as-is. It EXECUTES on the user's
-  machine. Every script was security-audited by an LLM at registration (the
-  audit summary is on the listing), but audits are advisory: ALWAYS download
-  the script, review it yourself, show the user your review, and install only
-  after they approve.
+Every listing was **security-audited by an LLM at submission** (the audit
+summary and detected capabilities are on the listing), and the exact reviewed
+bytes are what get served. Audits are advisory, not a guarantee: ALWAYS
+download the script, review it yourself, show the user your read of what it
+does, and install only after they approve.
 
-## Browse
+If the user asks to **share their current statusline**, use the publishing flow
+below. Read their configured statusLine command and publish the script it points
+to. Do not browse for or install a different statusline.
+
+## Browse (free, plain HTTP)
 
 - \`GET ${base}/api/statuslines?q=&sort=installs|newest|revenue\` — list
-- \`GET ${base}/api/statuslines/{slug}\` — detail; free entries include payload + install instructions
+- \`GET ${base}/api/statuslines/{slug}\` — detail; free entries include the script + install steps
+- \`GET ${base}/api/statuslines/{slug}/script\` — raw script (free entries), text/plain
 - \`GET ${base}/api/leaderboard\` — rankings
+- \`GET ${base}/api/creators/{wallet}\` — a creator's identity + listings
 
 ## Install for the user
 
-Free entries are plain HTTP — no payment tooling or agentcash needed.
-
-Spec (free): save \`GET /api/statuslines/{slug}/spec\` to
-\`~/.claude/statuslines/{slug}.json\`, download \`${base}/render.mjs\` once to
-\`~/.claude/statuslines/render.mjs\`, then set in \`~/.claude/settings.json\`:
+1. \`GET ${base}/api/statuslines/{slug}/script\` (free) — or buy it (below).
+2. **Review it. Show the user the source and your assessment.** Install only on approval.
+3. Save to \`~/.claude/statuslines/{slug}\`, \`chmod +x\`, and set in \`~/.claude/settings.json\`:
 
 \`\`\`json
-{ "statusLine": { "type": "command", "command": "node ~/.claude/statuslines/render.mjs ~/.claude/statuslines/{slug}.json" } }
+{ "statusLine": { "type": "command", "command": "~/.claude/statuslines/{slug}" } }
 \`\`\`
 
-Script (free): save \`GET /api/statuslines/{slug}/script\` to
-\`~/.claude/statuslines/{slug}\`, REVIEW IT WITH THE USER, \`chmod +x\` it, and
-point \`statusLine.command\` at that path.
+## Buy a paid statusline
 
-Paid (either tier only): \`POST ${base}/api/download\` with \`{"slug": "..."}\`
-— pays the creator's asking price directly to their wallet via x402/MPP (use
-agentcash or any x402 client). The response contains the payload and install
-instructions.
+\`POST ${base}/api/download\` with \`{"slug": "..."}\` — pays the creator's
+asking price directly to their wallet via x402/MPP (use agentcash or any x402
+client). Returns the script and install steps. Review before installing.
 
 ## Publish the user's statusline
 
-\`POST ${base}/api/register\` (x402/MPP paid):
+\`POST ${base}/api/register\` ($0.15 via x402/MPP — the fee funds the audit):
 
-- Their existing statusline as-is: pass \`script\` (the file contents) and
-  \`previewAnsi\` — capture it with \`echo '{}' | COLUMNS=120 <their command>\`.
-  Costs $0.50, which funds the security audit; a rejected script is not
-  listed and the fee is not refunded.
-- A data-only design: pass \`spec\` (v1 format, see ${base}/docs#spec). Costs $0.01.
+- \`script\`: the statusline script, as-is.
+- \`previewAnsi\`: a captured sample — \`echo '{}' | COLUMNS=120 <their command>\`.
+- \`slug\`, \`name\`, \`description\`, \`priceUsd\` ("0" free, or any amount), \`tags\`.
 
-Both accept: \`slug\`, \`name\`, \`description\`, \`priceUsd\` ("0" free, up to
-"25"), \`author\`, \`tags\`. Sale proceeds pay the wallet that registered —
-one wallet is the account. Verify an X identity (POST /api/identity/claim
-then /api/identity/verify with a tweeted code, both SIWX-signed) and your
-listings display @handle as a verified author; otherwise they are unclaimed.
+Sale proceeds pay the wallet that registered — one wallet is the account. A
+failed audit means the script is not listed (the fee bought the audit).
+
+Verify an X identity (POST /api/identity/claim then /api/identity/verify with a
+tweeted code, both SIWX-signed) and the user's listings display @handle as a
+verified author; otherwise they are unclaimed.
+
+## Leave feedback
+
+\`POST ${base}/api/report\` (SIWX-signed, free): include \`rating\` (0–5) to
+review, or only \`comment\` to report a malicious/broken listing.
 
 ## Rules
 

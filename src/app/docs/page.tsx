@@ -1,213 +1,223 @@
 import type { Metadata } from "next";
-import { ShieldCheck, FileJson, Coins, Terminal } from "lucide-react";
 
 import { CopyBlock } from "@/components/copy-block";
-import { Separator } from "@/components/ui/separator";
-import { TerminalPreview } from "@/components/terminal-preview";
-import { STATUSLINE_VARIABLES } from "@/lib/statusline/spec";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Docs",
-  description:
-    "How ClaudeLines keeps installs safe, and how to publish and sell statuslines to agents.",
+  description: "How ClaudeLines stores, checks, installs, and sells Claude Code status lines.",
 };
 
-const EXAMPLE_SPEC = {
-  version: 1 as const,
-  powerline: true,
-  segments: [
-    { text: "{model}", fg: "#052e16", bg: "#4ade80", bold: true },
-    { text: "{dir}", fg: "#e5e5e5", bg: "#262626" },
-    { text: " {gitBranch}", fg: "#a3a3a3", bg: "#171717", when: "gitBranch" as const },
-    { text: "{cost}", fg: "#4ade80", bg: "#0a0a0a", bold: true },
-  ],
-};
+const sectionClass = "flex flex-col gap-4 border-t pt-8";
+const textClass = "text-muted-foreground text-sm leading-6";
 
 export default function DocsPage() {
   const base = siteUrl();
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-3xl font-medium tracking-tight">Docs</h1>
-        <p className="text-muted-foreground text-sm">
-          The safety model, the install flow, and how to sell statuslines to
-          agents.
+    <div className="flex max-w-3xl flex-col gap-8">
+      <header className="flex flex-col gap-2">
+        <h1 className="text-3xl font-medium tracking-tight">
+          How ClaudeLines works
+        </h1>
+        <p className={textClass}>
+          ClaudeLines is a registry for Claude Code status line scripts. It
+          stores the script, a captured preview, audit results, price, install
+          count, and recorded sales revenue for each listing.
         </p>
-      </div>
+      </header>
 
-      {/* ------------------------------------------------ safety model */}
-      <section className="flex flex-col gap-4" id="safety">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="text-primary size-4" />
-          <h2 className="text-lg font-medium">Statuslines are data, not code</h2>
-        </div>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          A Claude Code statusline is normally an arbitrary command that runs
-          on your machine every second — which makes &ldquo;install this cool
-          statusline&rdquo; a supply-chain problem. This registry removes the
-          problem instead of asking you to trust it — with two tiers. A{" "}
-          <strong>data-only spec</strong> is JSON (segments, colors, variables)
-          interpreted by one open-source renderer: nothing to trust, nothing to
-          review. A <strong>script</strong> is an existing statusline uploaded
-          as-is: it runs on your machine, so every script is security-audited
-          by Opus at registration (the $0.50 fee pays for it), labeled with its
-          capabilities, and installed behind a read-it-first gate.
+      <section className={sectionClass} id="status-lines">
+        <h2 className="text-lg font-medium">What a status line is</h2>
+        <p className={textClass}>
+          A Claude Code status line is a command configured in{" "}
+          <code className="text-foreground text-xs">
+            ~/.claude/settings.json
+          </code>
+          . Claude Code sends session data to the command as JSON on standard
+          input. The command writes text to standard output. Claude Code shows
+          that text below the prompt.
         </p>
-        <ul className="text-muted-foreground flex flex-col gap-2 text-sm">
-          {[
-            "Specs cannot contain code, shell, or escape sequences — the schema rejects control characters and unknown variables, both at registration and again locally at render time.",
-            "The renderer is a single dependency-free file (~250 lines) you install once and can read in one sitting. It never evaluates spec content.",
-            "It runs at most two subprocesses, both hardcoded git commands (no shell, 500 ms timeouts): branch --show-current and status --porcelain — and only when a spec uses {gitBranch} or {gitDirty}.",
-            "Installing a new statusline just writes a JSON file. Nothing new executes.",
-          ].map((t) => (
-            <li key={t} className="flex gap-2">
-              <span className="text-primary">—</span>
-              <span>{t}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-muted-foreground text-sm">
-          Audit the renderer yourself:{" "}
+        <p className={textClass}>
+          The script runs on your computer with your user permissions. It can
+          read files, write files, run programs, and make network requests if
+          its code does so. See the{" "}
           <a
-            href="/render.mjs"
-            className="text-foreground font-mono text-xs underline underline-offset-2"
+            href="https://code.claude.com/docs/en/statusline"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline underline-offset-4"
           >
-            {base}/render.mjs
+            Claude Code status line documentation
           </a>
+          .
         </p>
       </section>
 
-      <Separator />
-
-      {/* ------------------------------------------------ spec format */}
-      <section className="flex flex-col gap-4" id="spec">
-        <div className="flex items-center gap-2">
-          <FileJson className="text-primary size-4" />
-          <h2 className="text-lg font-medium">The spec format</h2>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          Up to 16 segments, each with template text, optional{" "}
-          <span className="font-mono text-xs">#rrggbb</span> colors and
-          bold/dim/italic flags, joined plainly or as a powerline. A{" "}
-          <span className="font-mono text-xs">when</span> field hides a segment
-          if its variable is empty, and{" "}
-          <span className="font-mono text-xs">newline</span> starts a second
-          row — Claude Code supports multi-line statuslines.
+      <section className={sectionClass} id="listings">
+        <h2 className="text-lg font-medium">What a listing contains</h2>
+        <ul className={`${textClass} list-disc space-y-2 pl-5`}>
+          <li>The status line script.</li>
+          <li>A captured ANSI preview supplied by the publisher.</li>
+          <li>Name, description, tags, author wallet, and price.</li>
+          <li>An audit summary, detected capabilities, and scanner flags.</li>
+        </ul>
+        <p className={textClass}>
+          The preview is stored text. The site does not run the script in your
+          browser. A preview can be inaccurate, so inspect the source before
+          installing.
         </p>
-        <CopyBlock text={JSON.stringify(EXAMPLE_SPEC, null, 2)} />
-        <TerminalPreview spec={EXAMPLE_SPEC} />
-        <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">Variables</h3>
-          <div className="grid gap-x-6 gap-y-1.5 rounded-xl border p-4 sm:grid-cols-2">
-            {Object.entries(STATUSLINE_VARIABLES).map(([name, desc]) => (
-              <div key={name} className="flex items-baseline gap-2 text-sm">
-                <span className="text-primary shrink-0 font-mono text-xs">
-                  {"{" + name + "}"}
-                </span>
-                <span className="text-muted-foreground text-xs">{desc}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
 
-      <Separator />
-
-      {/* ------------------------------------------------ install */}
-      <section className="flex flex-col gap-4" id="install">
-        <div className="flex items-center gap-2">
-          <Terminal className="text-primary size-4" />
-          <h2 className="text-lg font-medium">Installing</h2>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          Two files, both readable: the renderer (once) and a spec. Free specs
-          download directly; every statusline page has the exact commands.
+      <section className={sectionClass} id="install">
+        <h2 className="text-lg font-medium">Installing a status line</h2>
+        <p className={textClass}>
+          The Add button copies an instruction for Claude Code. It does not
+          install anything by itself.
         </p>
+        <ol className={`${textClass} list-decimal space-y-2 pl-5`}>
+          <li>Get the script source. Free scripts use a GET request.</li>
+          <li>Paid scripts use POST /api/download and require payment.</li>
+          <li>Read the script.</li>
+          <li>Save it under ~/.claude/statuslines and make it executable.</li>
+          <li>Set statusLine.command in ~/.claude/settings.json.</li>
+        </ol>
         <CopyBlock
-          label="One-time renderer install"
-          text={`mkdir -p ~/.claude/statuslines\ncurl -fsSL ${base}/render.mjs -o ~/.claude/statuslines/render.mjs`}
+          label="Download a free script"
+          text={`slug="replace-with-listing-slug"
+mkdir -p ~/.claude/statuslines
+curl -fsSL "${base}/api/statuslines/$slug/script" -o ~/.claude/statuslines/$slug
+$EDITOR ~/.claude/statuslines/$slug
+chmod +x ~/.claude/statuslines/$slug`}
         />
         <CopyBlock
-          label="Then per statusline (example: merit-line)"
-          text={`curl -fsSL ${base}/api/statuslines/merit-line/spec -o ~/.claude/statuslines/merit-line.json`}
-        />
-        <CopyBlock
-          label="Point Claude Code at it (~/.claude/settings.json)"
+          label="Claude Code settings"
           text={JSON.stringify(
             {
               statusLine: {
                 type: "command",
                 command:
-                  "node ~/.claude/statuslines/render.mjs ~/.claude/statuslines/merit-line.json",
+                  "~/.claude/statuslines/replace-with-listing-slug",
               },
             },
             null,
             2,
           )}
         />
-        <p className="text-muted-foreground text-sm">
-          Or ask your agent to do it — this site publishes{" "}
-          <a href="/llms.txt" className="font-mono text-xs underline underline-offset-2">
-            /llms.txt
-          </a>{" "}
-          and{" "}
-          <a href="/openapi.json" className="font-mono text-xs underline underline-offset-2">
-            /openapi.json
-          </a>{" "}
-          so agents can browse, buy, and install on their own.
+      </section>
+
+      <section className={sectionClass} id="checks">
+        <h2 className="text-lg font-medium">Checks on submitted scripts</h2>
+        <ol className={`${textClass} list-decimal space-y-2 pl-5`}>
+          <li>The registration payment is verified.</li>
+          <li>An LLM reviews the submitted script.</li>
+          <li>
+            A deterministic scanner checks for risky patterns such as remote
+            downloads, shell execution, settings changes, scheduled jobs,
+            credential access, and reverse shells.
+          </li>
+          <li>A high severity scanner result rejects the submission.</li>
+          <li>
+            An accepted script and its audit metadata are stored in the
+            database. The stored script is the source returned to installers.
+          </li>
+        </ol>
+        <p className={textClass}>
+          A rejected submission is not listed. The registration payment is not
+          refunded because the audit has already run.
+        </p>
+        <p className="text-sm font-medium leading-6">
+          These checks do not prove that a script is safe. Read the script
+          before running it.
         </p>
       </section>
 
-      <Separator />
-
-      {/* ------------------------------------------------ sell */}
-      <section className="flex flex-col gap-4" id="sell">
-        <div className="flex items-center gap-2">
-          <Coins className="text-primary size-4" />
-          <h2 className="text-lg font-medium">Publishing &amp; selling</h2>
-        </div>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          Registration is agent-native and priced by tier:{" "}
-          <span className="text-foreground font-medium">$0.01</span> for
-          data-only specs,{" "}
-          <span className="text-foreground font-medium">$0.50</span> for
-          scripts (the fee funds the Opus security audit — rejected scripts
-          aren\u2019t listed and the fee bought the audit). Both settle over{" "}
-          <a href="https://agentcash.dev" className="underline underline-offset-2">
-            x402/MPP
-          </a>
-          . Set <span className="font-mono text-xs">priceUsd</span> to
-          &ldquo;0&rdquo; for a free listing, or up to $25 to sell — buyers pay
-          the wallet you registered from, directly on-chain (1 in 20 sales
-          settles to the registry: the 5% volume fee). Verify an X handle via
-          the identity API to display it as a verified author.
+      <section className={sectionClass} id="publish">
+        <h2 className="text-lg font-medium">Publishing</h2>
+        <p className={textClass}>
+          POST /api/register costs $0.15 through x402 or MPP. The request must
+          include a slug, name, description, script, captured preview, price,
+          and up to five tags. Scripts are limited to 32 KB. Set priceUsd to 0
+          for a free listing or a positive decimal USD amount for a paid
+          listing.
+        </p>
+        <p className={textClass}>
+          The wallet that pays for registration becomes the listing owner. A
+          verified X handle can be attached to that wallet through the identity
+          endpoints.
         </p>
         <CopyBlock
-          label="Ask your agent to publish"
-          text={`Publish my statusline to ${base} — fetch ${base}/llms.txt, then POST /api/register ($0.01 via x402/MPP) with my spec, priceUsd "0.10", and my payout wallet.`}
+          label="Ask Claude Code to publish the configured status line"
+          text={`Publish my Claude Code status line to ${base}. Read statusLine.command from ~/.claude/settings.json and read the script at that path. Show me the script before uploading it. Capture previewAnsi with COLUMNS=120. Read ${base}/llms.txt, then POST /api/register with the script, previewAnsi, slug, name, description, priceUsd, and tags.`}
         />
-        <CopyBlock
-          label="Or the raw request"
-          text={`POST ${base}/api/register\n${JSON.stringify(
-            {
-              slug: "neon-nights",
-              name: "Neon Nights",
-              description: "Synthwave purple-to-cyan powerline with cost tracking.",
-              priceUsd: "0.10",
-              author: "you",
-              tags: ["powerline", "synthwave"],
-              spec: { version: 1, segments: ["…"] },
-            },
-            null,
-            2,
-          )}`}
-        />
-        <p className="text-muted-foreground text-sm">
-          Payments settle on Base (x402) or Tempo (MPP). Discovery is spec-based
-          — this registry is indexed by agentcash.dev, x402scan, and mppscan, so
-          any funded agent can find and buy from it.
+      </section>
+
+      <section className={sectionClass} id="payments">
+        <h2 className="text-lg font-medium">Payments and accounting</h2>
+        <ul className={`${textClass} list-disc space-y-2 pl-5`}>
+          <li>Free scripts are downloaded without payment.</li>
+          <li>
+            Paid downloads charge the price set by the publisher through x402
+            or MPP.
+          </li>
+          <li>
+            Payment settles directly to the wallet that published the listing.
+            ClaudeLines does not take a platform fee or hold the payment.
+          </li>
+          <li>The full purchase price is recorded in the listing revenue total.</li>
+          <li>
+            A purchase made by the publisher&apos;s own wallet does not increase
+            installs or revenue.
+          </li>
+        </ul>
+      </section>
+
+      <section className={sectionClass} id="api">
+        <h2 className="text-lg font-medium">API</h2>
+        <div className="overflow-x-auto border">
+          <table className="w-full min-w-[42rem] text-left text-sm">
+            <thead className="bg-muted/50 text-xs">
+              <tr>
+                <th className="px-3 py-2 font-medium">Method</th>
+                <th className="px-3 py-2 font-medium">Path</th>
+                <th className="px-3 py-2 font-medium">Purpose</th>
+              </tr>
+            </thead>
+            <tbody className="text-muted-foreground divide-y">
+              {[
+                ["GET", "/api/statuslines", "List public status lines"],
+                ["GET", "/api/statuslines/{slug}", "Get listing details"],
+                [
+                  "GET",
+                  "/api/statuslines/{slug}/script",
+                  "Download a free script",
+                ],
+                ["POST", "/api/download", "Buy and download a paid script"],
+                ["POST", "/api/register", "Audit and publish a script"],
+                ["GET", "/api/leaderboard", "List installs and revenue"],
+                ["POST", "/api/report", "Submit signed feedback or a report"],
+              ].map(([method, path, purpose]) => (
+                <tr key={`${method}-${path}`}>
+                  <td className="px-3 py-2 font-mono text-xs">{method}</td>
+                  <td className="text-foreground px-3 py-2 font-mono text-xs">
+                    {path}
+                  </td>
+                  <td className="px-3 py-2">{purpose}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className={textClass}>
+          Machine-readable details are available at{" "}
+          <a href="/openapi.json" className="text-foreground underline underline-offset-4">
+            /openapi.json
+          </a>
+          . Agent instructions are available at{" "}
+          <a href="/llms.txt" className="text-foreground underline underline-offset-4">
+            /llms.txt
+          </a>
+          .
         </p>
       </section>
     </div>

@@ -9,8 +9,7 @@
     "lint": "eslint",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx --env-file-if-exists=.env.local --env-file-if-exists=.env src/lib/db/seed.ts"
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@agentcash/router": "1.18.0",
@@ -20,6 +19,7 @@
     "drizzle-orm": "0.45.2",
     "lucide-react": "1.24.0",
     "next": "16.2.10",
+    "radix-ui": "1.6.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tailwind-merge": "3.6.0",

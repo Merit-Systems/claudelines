@@ -3,21 +3,15 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 
-/** skills.sh-style "try it now": one dark command box that copies itself. */
+/** Prompt that sends the user's current status line into the publish flow. */
 export function ShareButton({ base }: { base: string }) {
   const [copied, setCopied] = useState(false);
-  const host = base.replace(/^https?:\/\//, "");
 
-  // A prompt, not a shell command: the agent fetches the skill and follows
-  // it. Free installs are plain HTTP; only purchases and publishing pay
-  // via agentcash (x402/MPP).
-  const command = `Set up ${host}/skill.md`;
+  const command = `Use ${base}/skill.md to share my current Claude Code status line.`;
 
   return (
     <div className="flex max-w-xl flex-col gap-3">
-      <p className="text-muted-foreground text-sm">
-        Paste in Claude Code
-      </p>
+      <p className="font-mono text-sm font-medium">Share my status line:</p>
       <button
         type="button"
         onClick={() => {

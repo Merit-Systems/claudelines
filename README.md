@@ -45,10 +45,9 @@ Discovery: `/openapi.json` (OpenAPI 3.1 + `x-payment-info`) and `/llms.txt`.
    - `CDP_API_KEY_ID/SECRET` — x402 verification (free CDP tier)
    - `MPP_SECRET_KEY` + `MPP_CURRENCY` — enables MPP
    - `BASE_URL` — set explicitly when a custom domain is attached
-4. **Schema + seed**:
+4. **Schema**:
    ```bash
    pnpm db:push
-   pnpm db:seed
    ```
 5. **Run** `pnpm dev`, or deploy.
 6. **Production hardening**: add Upstash Redis (Vercel Marketplace) for
@@ -69,5 +68,4 @@ Then register the origin so agents can find it:
 
 - `pnpm dev` / `pnpm build` — Next.js
 - `pnpm db:push` — push Drizzle schema to Neon
-- `pnpm db:seed` — seed the built-in catalog
 - `pnpm db:studio` — Drizzle Studio

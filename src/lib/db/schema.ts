@@ -9,8 +9,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { StatuslineSpec } from "../statusline/spec";
-
 export const statuslines = pgTable("statuslines", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: text("slug").notNull().unique(),
@@ -25,17 +23,13 @@ export const statuslines = pgTable("statuslines", {
   priceUsd: numeric("price_usd", { precision: 10, scale: 6 })
     .notNull()
     .default("0"),
-  /**
-   * Two tiers:
-   *  - "spec": data-only JSON rendered by the auditable renderer (safe badge)
-   *  - "script": an existing statusline uploaded as-is; runs on the user's
-   *    machine, so listings carry detected capabilities and a review gate
-   */
+  /** Retained for old rows; every listing is now a script. */
   kind: text("kind", { enum: ["spec", "script"] })
     .notNull()
-    .default("spec"),
-  spec: jsonb("spec").$type<StatuslineSpec>(),
-  /** Raw script source (kind = "script"). */
+    .default("script"),
+  /** Legacy data-only spec column, retained for old rows; unused. */
+  spec: jsonb("spec"),
+  /** The uploaded statusline script source. Runs on the user's machine. */
   script: text("script"),
   /** Captured sample output (ANSI allowed) used for previews of scripts. */
   previewAnsi: text("preview_ansi"),
@@ -54,10 +48,7 @@ export const statuslines = pgTable("statuslines", {
   reportCount: integer("report_count").notNull().default(0),
   tags: text("tags").array().notNull().default([]),
   installs: integer("installs").notNull().default(0),
-  /**
-   * Every settled sale, including wash-guarded self-buys. Drives the rotating
-   * platform fee (every Nth sale settles to the registry wallet). Private.
-   */
+  /** Every settled sale, including wash-guarded self-buys. Private. */
   salesCount: integer("sales_count").notNull().default(0),
   revenueUsd: numeric("revenue_usd", { precision: 12, scale: 6 })
     .notNull()

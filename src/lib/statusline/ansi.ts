@@ -1,11 +1,20 @@
-import type { StyledRun } from "./render";
-
 /**
  * Parse a captured statusline sample (ANSI text) into styled runs for web
  * preview. Only SGR color/style codes are interpreted; OSC sequences are
  * stripped (keeping any visible text), and every other escape is discarded.
  * Output is plain data rendered as React text — nothing is executed.
  */
+
+export interface StyledRun {
+  text: string;
+  fg?: string;
+  bg?: string;
+  bold?: boolean;
+  dim?: boolean;
+  italic?: boolean;
+  /** Flexible gap from captured right-justified padding — grows to fill. */
+  spacer?: boolean;
+}
 
 const BASE16: Record<number, string> = {
   30: "#0d0d0d", 31: "#e5484d", 32: "#46a758", 33: "#d4a72c",

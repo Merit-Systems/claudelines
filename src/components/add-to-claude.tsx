@@ -2,10 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Plus } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ClaudeMark } from "@/components/claude-mark";
 import { CopyBlock } from "@/components/copy-block";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CcFrame, TERM_THEMES } from "@/components/terminal-preview";
 import { usePreviewTheme } from "@/components/preview-theme";
 import { cn } from "@/lib/utils";
@@ -25,7 +31,7 @@ export function StatuslineEntry({
   author,
   wallet,
   installs,
-  kind,
+  revenue,
   priceUsd,
   base,
   className,
@@ -39,7 +45,8 @@ export function StatuslineEntry({
   /** Creator wallet, when known — links the ?-avatar to their creator page. */
   wallet?: string | null;
   installs: string;
-  kind: "spec" | "script";
+  /** Revenue label shown in the aligned leaderboard column. */
+  revenue?: string;
   priceUsd: string;
   base: string;
   className?: string;
@@ -52,56 +59,29 @@ export function StatuslineEntry({
   const { theme } = usePreviewTheme();
   const free = Number(priceUsd) === 0;
   const price = `$${Number(priceUsd).toFixed(2)}`;
-  const script = kind === "script";
 
-  const command = script
-    ? `~/.claude/statuslines/${slug}`
-    : `node ~/.claude/statuslines/render.mjs ~/.claude/statuslines/${slug}.json`;
+  const command = `~/.claude/statuslines/${slug}`;
   const settings = JSON.stringify(
     { statusLine: { type: "command", command } },
     null,
     2,
   );
 
-  const agentPrompt = script
-    ? free
-      ? `Install the "${name}" statusline script from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt for instructions. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does, and only install after I approve.`
-      : `Buy and install the "${name}" statusline script (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP. IMPORTANT: it runs on my machine — show me the script with your review before installing.`
-    : free
-      ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt and follow the install instructions — it's a data-only JSON spec plus one auditable renderer; never run registry code.`
-      : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP, then follow the returned install instructions.`;
+  const agentPrompt = free
+    ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/llms.txt for instructions. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does, and only install after I approve.`
+    : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/llms.txt, POST /api/download with {"slug": "${slug}"} paying via x402/MPP. IMPORTANT: it runs on my machine — show me the script with your review before installing.`;
 
-  const manual: { label: string; text: string }[] = script
-    ? [
-        {
-          label: free
-            ? "Download, READ IT, then make it executable"
-            : `Buy with the agentcash CLI (${price}, paid to the creator) — then READ IT`,
-          text: free
-            ? `mkdir -p ~/.claude/statuslines\ncurl -fsSL ${base}/api/statuslines/${slug}/script -o ~/.claude/statuslines/${slug}\n$EDITOR ~/.claude/statuslines/${slug}   # review before trusting it\nchmod +x ~/.claude/statuslines/${slug}`
-            : `mkdir -p ~/.claude/statuslines\nnpx agentcash@latest fetch ${base}/api/download -m POST -b '{"slug":"${slug}"}' -p x402 | jq -r .script > ~/.claude/statuslines/${slug}\n$EDITOR ~/.claude/statuslines/${slug}   # review before trusting it\nchmod +x ~/.claude/statuslines/${slug}`,
-        },
-        { label: "Merge into ~/.claude/settings.json", text: settings },
-      ]
-    : free
-      ? [
-          {
-            label: "Download the renderer (once) and the spec",
-            text: [
-              "mkdir -p ~/.claude/statuslines",
-              `curl -fsSL ${base}/render.mjs -o ~/.claude/statuslines/render.mjs`,
-              `curl -fsSL ${base}/api/statuslines/${slug}/spec -o ~/.claude/statuslines/${slug}.json`,
-            ].join("\n"),
-          },
-          { label: "Merge into ~/.claude/settings.json", text: settings },
-        ]
-      : [
-          {
-            label: `Buy with the agentcash CLI (${price}, paid to the creator)`,
-            text: `mkdir -p ~/.claude/statuslines\ncurl -fsSL ${base}/render.mjs -o ~/.claude/statuslines/render.mjs\nnpx agentcash@latest fetch ${base}/api/download -m POST -b '{"slug":"${slug}"}' -p x402 | jq .spec > ~/.claude/statuslines/${slug}.json`,
-          },
-          { label: "Merge into ~/.claude/settings.json", text: settings },
-        ];
+  const manual: { label: string; text: string }[] = [
+    {
+      label: free
+        ? "Download, READ IT, then make it executable"
+        : `Buy with the agentcash CLI (${price}, paid to the creator) — then READ IT`,
+      text: free
+        ? `mkdir -p ~/.claude/statuslines\ncurl -fsSL ${base}/api/statuslines/${slug}/script -o ~/.claude/statuslines/${slug}\n$EDITOR ~/.claude/statuslines/${slug}   # review before trusting it\nchmod +x ~/.claude/statuslines/${slug}`
+        : `mkdir -p ~/.claude/statuslines\nnpx agentcash@latest fetch ${base}/api/download -m POST -b '{"slug":"${slug}"}' -p x402 | jq -r .script > ~/.claude/statuslines/${slug}\n$EDITOR ~/.claude/statuslines/${slug}   # review before trusting it\nchmod +x ~/.claude/statuslines/${slug}`,
+    },
+    { label: "Merge into ~/.claude/settings.json", text: settings },
+  ];
 
   return (
     <div
@@ -110,71 +90,104 @@ export function StatuslineEntry({
         className,
       )}
     >
-      <div className="flex items-center gap-2 text-xs">
+      <div
+        className={cn(
+          "items-center gap-2 text-xs",
+          revenue
+            ? "grid grid-cols-[1rem_minmax(0,1fr)_4.5rem_5.5rem] sm:grid-cols-[1rem_minmax(0,1fr)_5.5rem_6.5rem_7.5rem]"
+            : "flex",
+        )}
+      >
         {rank !== undefined && (
           <span className="text-muted-foreground w-4 shrink-0 text-right font-mono">
             {rank}
           </span>
         )}
-        <Link
-          href={`/statuslines/${slug}`}
-          className="shrink-0 text-sm font-medium hover:underline"
-        >
-          {name}
-        </Link>
-        {author.startsWith("@") ? (
-          <a
-            href={`https://x.com/${author.slice(1)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary truncate hover:underline"
-            title="Verified via X"
-          >
-            {author} ✓
-          </a>
-        ) : wallet ? (
+        <div className="flex min-w-0 items-center gap-2">
           <Link
-            href={`/creators/${wallet}`}
-            title="Unverified creator — view their other statuslines"
-            className="bg-muted text-muted-foreground hover:text-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] transition-colors"
+            href={`/statuslines/${slug}`}
+            className={cn(
+              "text-sm font-medium hover:underline",
+              revenue ? "truncate" : "shrink-0",
+            )}
           >
-            ?
+            {name}
           </Link>
-        ) : (
-          <span
-            title="Unverified creator"
-            className="bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px]"
-          >
-            ?
-          </span>
-        )}
-        <span className="text-muted-foreground ml-auto shrink-0 font-mono">
+          {author.startsWith("@") ? (
+            <a
+              href={`https://x.com/${author.slice(1)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary truncate hover:underline"
+              title="Verified via X"
+            >
+              {author} ✓
+            </a>
+          ) : wallet ? (
+            <Link
+              href={`/creators/${wallet}`}
+              title="Unverified creator — view their other statuslines"
+              className="bg-muted text-muted-foreground hover:text-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] transition-colors"
+            >
+              ?
+            </Link>
+          ) : (
+            <span
+              title="Unverified creator"
+              className="bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px]"
+            >
+              ?
+            </span>
+          )}
+        </div>
+        <span
+          className={cn(
+            "text-muted-foreground shrink-0 text-right font-mono tabular-nums",
+            !revenue && "ml-auto",
+          )}
+        >
           {installs}
         </span>
-        <div className="flex shrink-0 items-center">
-          <Button
-            variant="outline"
-            size="xs"
-            className="rounded-r-none"
-            title="Copies an install prompt — paste it into Claude Code"
-            onClick={() => {
-              navigator.clipboard.writeText(agentPrompt);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
-          >
-            {copied ? (
-              <>
-                <Check className="size-3 text-primary" />
-                Prompt copied
-              </>
-            ) : (
-              <>
-                <Plus className="size-3" />
-                {free ? "Add" : `Add · ${price}`}
-              </>
-            )}
-          </Button>
+        {revenue && (
+          <span className="text-muted-foreground shrink-0 text-right font-mono tabular-nums">
+            {revenue}
+          </span>
+        )}
+        <div
+          className={cn(
+            "flex shrink-0 items-center",
+            revenue && "col-start-2 justify-self-start sm:col-start-auto sm:justify-self-end",
+          )}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="xs"
+                className="rounded-r-none"
+                onClick={() => {
+                  navigator.clipboard.writeText(agentPrompt);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? (
+                  <>
+                    <Check className="size-3 text-primary" />
+                    Prompt copied
+                  </>
+                ) : (
+                  <>
+                    <ClaudeMark className="size-3 shrink-0" />
+                    Add
+                  </>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Price: {free ? "Free" : price}</p>
+            </TooltipContent>
+          </Tooltip>
           <Button
             variant={manualOpen ? "secondary" : "outline"}
             size="xs"
