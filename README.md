@@ -1,71 +1,155 @@
-# ClaudeLines (claudelines.com)
+# ClaudeLines
 
-Registry + leaderboard for Claude Code statuslines. Statuslines are **data,
-not code**: each one is a JSON spec rendered by a single auditable,
-dependency-free renderer — installing one never executes anything from the
-registry. Publishing costs $0.01 over x402/MPP; creators set their own sale
-price and buyers pay their wallet directly.
+[ClaudeLines](https://claudelines.com) is a registry and marketplace for
+[Claude Code status line](https://code.claude.com/docs/en/statusline) scripts.
+People can share a status line for free or sell it. Others can preview, review,
+and install it.
+
+A status line is executable code. Claude Code runs it on the user's computer
+with the user's permissions. ClaudeLines checks every submitted script, but the
+checks do not prove that a script is safe. Read a script before installing it.
+
+## How it works
+
+Each listing contains:
+
+- The status line script.
+- A captured ANSI preview supplied by the publisher.
+- Its name, description, tags, price, and publisher wallet.
+- An LLM audit summary, detected capabilities, and deterministic scanner flags.
+- Install, sales, and revenue counts.
+
+The site renders the stored preview. It does not execute the script in the
+browser.
+
+### Publishing
+
+Publishing costs $0.15 through x402 or MPP. The fee pays for the security audit
+and is charged even when the audit rejects the script.
+
+The publisher submits the script, a sanitized preview, listing metadata, and a
+price. The service then:
+
+1. Verifies the registration payment.
+2. Runs an LLM review of the script.
+3. Scans for deterministic high-risk patterns.
+4. Rejects scripts that fail the checks.
+5. Stores accepted scripts and their audit results.
+
+The wallet that pays for registration owns the listing and receives payments
+for paid downloads. A publisher can connect an X account to that wallet through
+SIWX and OAuth.
+
+### Installing
+
+Free scripts are served as raw text. Paid scripts are returned after payment.
+The install flow tells the user or agent to:
+
+1. Download the exact stored script bytes.
+2. Read the script and explain what it does.
+3. Install only after the user approves.
+4. Save it under `~/.claude/statuslines/` and make it executable.
+5. Set `statusLine.command` in `~/.claude/settings.json`.
+
+### Payments
+
+- Free downloads require no payment.
+- Publishing costs $0.15 and funds the audit.
+- Publishers choose the price of paid scripts.
+- Paid downloads settle directly to the publisher's wallet.
+- ClaudeLines takes no platform fee and does not hold creator payments.
+- Self-purchases do not increase installs or revenue.
+
+## API
+
+| Method | Path | Auth or payment | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/statuslines` | None | Search and list public status lines |
+| `GET` | `/api/statuslines/{slug}` | None | Get listing details |
+| `GET` | `/api/statuslines/{slug}/script` | None for free listings | Download a free script as raw text |
+| `GET` | `/api/leaderboard` | None | List installs and revenue |
+| `GET` | `/api/creators/{wallet}` | None | Get a creator identity and listings |
+| `POST` | `/api/download` | Creator-set price | Buy and download a paid script |
+| `POST` | `/api/register` | $0.15 | Audit and publish a script |
+| `POST` | `/api/identity/connect` | SIWX | Start X account verification |
+| `POST` | `/api/report` | SIWX | Submit a review or report |
+| `GET` | `/api/statuslines/{slug}/feedback` | None | Get reviews and reports |
+
+See [`/openapi.json`](https://claudelines.com/openapi.json) for the complete
+schema. Agent instructions are served at
+[`/skill.md`](https://claudelines.com/skill.md) and
+[`/llms.txt`](https://claudelines.com/llms.txt).
 
 ## Stack
 
-- Next.js (App Router) + Tailwind v4, merit-systems styling
-- [`@agentcash/router`](https://agentcash.dev/docs/router) — x402 + MPP paid API
-- Drizzle ORM + Neon Postgres
-- Deployed on Vercel
+- Next.js App Router and React
+- Tailwind CSS
+- Drizzle ORM and Neon Postgres
+- `@agentcash/router` for x402, MPP, and SIWX
+- Anthropic for script audits
+- Vercel for hosting
 
-## The safety model
+## Local setup
 
-`public/render.mjs` is the only executable users ever install (once, to
-`~/.claude/statuslines/`). Specs are validated twice — by the registry at
-registration and by the renderer at render time — and cannot contain control
-characters, escape sequences, or unknown variables. The renderer runs exactly
-one hardcoded subprocess (`git branch --show-current`, no shell) and makes no
-network calls. See `/docs` on the site.
+Requirements:
 
-## API (agent-facing)
+- Node.js
+- pnpm
+- A Postgres or Neon database
 
-| Route | Auth | Purpose |
-| --- | --- | --- |
-| `GET /api/statuslines` | free | List entries (specs inline for free ones) |
-| `GET /api/statuslines/{slug}` | free | Detail; spec + install steps when free |
-| `GET /api/statuslines/{slug}/spec` | free | Raw spec JSON (free entries; 402 hint otherwise) |
-| `GET /api/leaderboard` | free | Rankings |
-| `POST /api/download` | paid — creator's price | Buy a paid spec; pays the creator's wallet via per-request `payTo` |
-| `POST /api/register` | paid — $0.01 flat | Publish a statusline (spec validated, slug unique, price ≤ $25) |
-
-Discovery: `/openapi.json` (OpenAPI 3.1 + `x-payment-info`) and `/llms.txt`.
-
-## Setup
-
-1. **Create the Vercel project** and link this repo.
-2. **Neon**: Vercel → Storage → Create Database → Neon. Pull env:
-   `vercel env pull .env.local`
-3. **Wallets & keys** — fill the rest of `.env.example` (see comments):
-   - `EVM_PAYEE_ADDRESS` — platform wallet (registration fees)
-   - `CDP_API_KEY_ID/SECRET` — x402 verification (free CDP tier)
-   - `MPP_SECRET_KEY` + `MPP_CURRENCY` — enables MPP
-   - `BASE_URL` — set explicitly when a custom domain is attached
-4. **Schema**:
-   ```bash
-   pnpm db:push
-   ```
-5. **Run** `pnpm dev`, or deploy.
-6. **Production hardening**: add Upstash Redis (Vercel Marketplace) for
-   `KV_REST_API_URL/TOKEN` before real traffic.
-
-## Validate payments end-to-end
+Install dependencies and create a local environment file:
 
 ```bash
-npx -y @agentcash/discovery@latest check https://<domain>
-npx agentcash@latest fetch https://<domain>/api/download -m POST -b '{"slug":"sunset-boulevard"}' -p x402
+pnpm install
+cp .env.example .env.local
 ```
 
-Then register the origin so agents can find it:
-[x402scan](https://www.x402scan.com/resources/register) ·
-[mppscan](https://www.mppscan.com/register)
+Set at least:
 
-## Scripts
+- `DATABASE_URL`: Postgres connection string.
+- `BASE_URL`: Public service origin. Use `http://localhost:3000` locally.
+- `EVM_PAYEE_ADDRESS`: Wallet that receives registration payments.
+- `ANTHROPIC_API_KEY`: Required for audits in a serverless deployment.
+- Payment protocol credentials for x402, MPP, or both.
 
-- `pnpm dev` / `pnpm build` — Next.js
-- `pnpm db:push` — push Drizzle schema to Neon
-- `pnpm db:studio` — Drizzle Studio
+Optional features use:
+
+- `X_OAUTH_CLIENT_ID` and `X_OAUTH_CLIENT_SECRET` for X verification.
+- `KV_REST_API_URL` and `KV_REST_API_TOKEN` for distributed nonces and replay
+  protection.
+- `ADMIN_TOKEN` for the delist endpoint.
+
+Apply the schema and start the development server:
+
+```bash
+pnpm db:push
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the development server |
+| `pnpm build` | Apply migrations and build for production |
+| `pnpm start` | Start the production server |
+| `pnpm lint` | Run ESLint |
+| `pnpm db:push` | Push the current Drizzle schema |
+| `pnpm db:generate` | Generate a migration |
+| `pnpm db:studio` | Open Drizzle Studio |
+
+## Production
+
+The production deployment uses Vercel with a Neon database. The build command
+runs `drizzle-kit migrate` before `next build`.
+
+Before accepting real traffic:
+
+1. Configure production payment credentials and the audit API key.
+2. Configure Upstash Redis for SIWX nonces and MPP replay protection.
+3. Set the X OAuth callback to
+   `{BASE_URL}/api/identity/callback` if identity verification is enabled.
+4. Set a strong `ADMIN_TOKEN`.
+5. Review scripts before installing them. Automated checks are advisory.

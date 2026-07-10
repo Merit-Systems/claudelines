@@ -35,7 +35,7 @@ export function XAuthor({
           className="shrink-0 rounded-full"
         />
       )}
-      <span className="truncate">@{handle}</span>
+      <span className="truncate">{handle}</span>
     </a>
   );
 }
