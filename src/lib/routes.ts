@@ -82,8 +82,12 @@ function publicEntry(row: StatuslineRow, includePayload: boolean) {
 
 /** Salted caller fingerprint for free-install dedup. Raw IPs never persist. */
 function callerHash(request: Request): string {
+  // x-real-ip is set by Vercel's proxy and not client-controllable; the first
+  // x-forwarded-for element IS spoofable, so it's only a local-dev fallback.
   const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    request.headers.get("x-real-ip")?.trim() ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown";
   return createHash("sha256")
     .update(`${process.env.MPP_SECRET_KEY ?? "statuslines"}:${ip}`)
     .digest("hex")
@@ -280,11 +284,19 @@ router
   .handler(async ({ body, wallet }) => {
     const row = await getStatusline(body.slug);
     if (!row) throw new HttpError("Statusline not found", 404);
-    await recordInstall(row, {
-      wallet,
-      amountUsd: row.priceUsd,
-      purchase: true,
-    });
+    // Wash-trade guard: self-buys (payer == payout wallet) are served but
+    // never counted toward installs or revenue.
+    const selfBuy =
+      !!wallet &&
+      !!row.authorWallet &&
+      wallet.toLowerCase() === row.authorWallet.toLowerCase();
+    if (!selfBuy) {
+      await recordInstall(row, {
+        wallet,
+        amountUsd: row.priceUsd,
+        purchase: true,
+      });
+    }
     return {
       slug: row.slug,
       name: row.name,
