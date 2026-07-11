@@ -69,6 +69,14 @@ export function StatuslineEntry({
   const [manualOpen, setManualOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [cc, setCc] = useState(defaultCc);
+  // Rows are keyed by slug, so a sort change reorders them without
+  // remounting — re-sync when defaultCc flips so the expanded frame follows
+  // the new pole position instead of sticking to whichever row had it last.
+  const [lastDefaultCc, setLastDefaultCc] = useState(defaultCc);
+  if (lastDefaultCc !== defaultCc) {
+    setLastDefaultCc(defaultCc);
+    setCc(defaultCc);
+  }
   const { theme } = usePreviewTheme();
   const free = Number(priceUsd) === 0;
   const price = `$${Number(priceUsd).toFixed(2)}`;
