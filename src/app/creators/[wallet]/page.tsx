@@ -63,6 +63,7 @@ export default async function CreatorPage({ params }: Props) {
           <li key={row.slug}>
             <StatuslineEntry
               slug={row.slug}
+              unaudited={!row.auditVerdict}
               name={row.name}
               author={displayAuthor(row.authorHandle)}
               avatarUrl={row.authorAvatarUrl}

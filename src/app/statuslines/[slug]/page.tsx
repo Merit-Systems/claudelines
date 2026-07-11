@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Download, ShieldCheck } from "lucide-react";
+import { Download, ShieldAlert, ShieldCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -49,6 +49,12 @@ export default async function StatuslinePage({ params }: Props) {
           {row.auditVerdict === "caution" && (
             <Badge variant="outline">audited · caution</Badge>
           )}
+          {!row.auditVerdict && (
+            <Badge variant="destructive">
+              <ShieldAlert />
+              unaudited
+            </Badge>
+          )}
           <Badge variant={free ? "secondary" : "success"}>
             {formatUsd(row.priceUsd)}
           </Badge>
@@ -80,6 +86,44 @@ export default async function StatuslinePage({ params }: Props) {
       </div>
 
       <TerminalPreview previewAnsi={row.previewAnsi} previewFrames={row.previewFrames} />
+
+      {!row.auditSummary && (
+        <div className="border-destructive/40 bg-destructive/5 flex flex-col gap-2 rounded-xl border p-4">
+          <div className="text-destructive flex items-center gap-2 text-sm font-medium">
+            <ShieldAlert className="size-4" />
+            This script has NOT been security audited
+          </div>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            It was published without a wallet, so no LLM security review ever
+            ran and nobody owns or vouches for it. It executes on your machine
+            with your full user privileges — <strong>read every line before
+            installing</strong>. The automated scanner found no high-severity
+            patterns, but that is a much weaker check than an audit.
+          </p>
+          {row.capabilities.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {row.capabilities.map((c) => (
+                <Badge key={c} variant="outline">
+                  {c}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {row.redFlags.length > 0 && (
+            <ul className="text-muted-foreground text-xs">
+              {row.redFlags.map((f) => (
+                <li key={f}>— {f}</li>
+              ))}
+            </ul>
+          )}
+          <p className="text-muted-foreground text-xs font-medium">
+            Anyone can fund the audit ($0.15) — ask Claude Code:
+          </p>
+          <CopyBlock
+            text={`Fund a security audit of the "${row.name}" statusline on ${siteUrl()}. POST ${siteUrl()}/api/audit with {"slug": "${row.slug}"} paying $0.15 via x402/MPP, then tell me the verdict, summary, and risks. A rejected audit delists the script.`}
+          />
+        </div>
+      )}
 
       {row.auditSummary && (
         <div className="flex flex-col gap-2 rounded-xl border p-4">
@@ -126,6 +170,7 @@ export default async function StatuslinePage({ params }: Props) {
 
       <StatuslineEntry
         className="border"
+        unaudited={!row.auditVerdict}
         slug={row.slug}
         name={row.name}
         author={displayAuthor(row.authorHandle)}

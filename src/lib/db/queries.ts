@@ -118,6 +118,8 @@ export async function createStatusline(input: {
   redFlags: string[];
   tags: string[];
   registeredBy: string | null;
+  /** Salted caller hash for unauthenticated submissions — rate limiting. */
+  ipHash?: string | null;
 }): Promise<StatuslineRow> {
   const [row] = await db()
     .insert(statuslines)
@@ -144,10 +146,42 @@ export async function createStatusline(input: {
     statuslineId: row.id,
     kind: "register",
     wallet: input.registeredBy,
+    ipHash: input.ipHash ?? null,
     amountUsd: "0.01",
   });
 
   return row;
+}
+
+/** Registrations from one caller hash in the last 24 h — throttles the
+ *  unauthenticated submit endpoint. */
+export async function countRecentRegistersByIp(ipHash: string): Promise<number> {
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const rows = await db()
+    .select({ id: events.id })
+    .from(events)
+    .where(
+      and(
+        eq(events.kind, "register"),
+        eq(events.ipHash, ipHash),
+        gt(events.createdAt, dayAgo),
+      ),
+    );
+  return rows.length;
+}
+
+/** Stamp (or refresh) audit results on an existing listing. */
+export async function updateStatuslineAudit(
+  slug: string,
+  audit: {
+    auditVerdict: string;
+    auditSummary: string;
+    auditModel: string;
+    capabilities: string[];
+    redFlags: string[];
+  },
+): Promise<void> {
+  await db().update(statuslines).set(audit).where(eq(statuslines.slug, slug));
 }
 
 export async function recordInstall(

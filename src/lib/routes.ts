@@ -24,6 +24,7 @@ import { auditAvailable, auditScript } from "./statusline/audit";
 import { getIdentity, oauthConfigured, startClaim } from "./identity";
 import {
   bumpSalesCount,
+  countRecentRegistersByIp,
   createStatusline,
   getStatusline,
   listByWallet,
@@ -32,6 +33,7 @@ import {
   getFeedback,
   recordInstall,
   setHidden,
+  updateStatuslineAudit,
   updateStatuslinePreview,
   upsertReview,
   slugTaken,
@@ -504,6 +506,146 @@ router
         Number(row.priceUsd) > 0
           ? `Live at ${base}/statuslines/${row.slug}. Buyers pay $${Number(row.priceUsd).toFixed(2)} directly to ${row.authorWallet} via POST /api/download.`
           : `Live at ${base}/statuslines/${row.slug} — free to install.`,
+    };
+  });
+
+// --- Unauthenticated publish (free, UNAUDITED, no owner) -----------------------
+
+const SUBMITS_PER_DAY = 5;
+
+const submitBody = registerBody.omit({ priceUsd: true });
+
+router
+  .route({ path: "submit", method: "POST" })
+  .unprotected()
+  .body(submitBody)
+  .inputExample({
+    slug: "neon-nights",
+    name: "Neon Nights",
+    description: "Synthwave banner with cost tracking.",
+    tags: ["powerline", "synthwave"],
+    script: "#!/usr/bin/env bash\nIN=$(cat)\n# ... your statusline ...",
+    previewAnsi: "Neon Nights ~/proj $1.42",
+  })
+  .description(
+    "Publish a statusline WITHOUT a wallet — free, but the listing is UNAUDITED (no LLM security review), has no owner (cannot claim authorship, update the preview, or sell — always free to install), and carries a prominent warning until someone funds an audit via POST /api/audit. High-severity scanner hits are rejected. Rate-limited per caller.",
+  )
+  .handler(async ({ body, request }) => {
+    const ipHash = callerHash(request);
+    if ((await countRecentRegistersByIp(ipHash)) >= SUBMITS_PER_DAY) {
+      throw new HttpError(
+        `Rate limit: at most ${SUBMITS_PER_DAY} unauthenticated submissions per day`,
+        429,
+      );
+    }
+    if (await slugTaken(body.slug)) {
+      throw new HttpError(`slug "${body.slug}" is already taken`, 409);
+    }
+    const flags = scanRedFlags(body.script);
+    if (hasHighSeverity(flags)) {
+      // Without a funded audit the deterministic scanner is the only gate —
+      // high-severity patterns are rejected outright, nothing is stored.
+      throw new HttpError(
+        `Rejected by the automated scanner: ${flags
+          .filter((f) => f.severity === "high")
+          .map((f) => f.label)
+          .join("; ")}`,
+        400,
+      );
+    }
+    const row = await createStatusline({
+      slug: body.slug,
+      name: body.name,
+      description: body.description,
+      authorWallet: null,
+      priceUsd: "0",
+      script: body.script,
+      previewAnsi: body.previewAnsi,
+      previewFrames: body.previewFrames ?? null,
+      capabilities: detectCapabilities(body.script),
+      auditVerdict: null,
+      auditSummary: null,
+      auditModel: null,
+      redFlags: flags.map((f) => `${f.severity}: ${f.label}`),
+      tags: body.tags,
+      registeredBy: null,
+      ipHash,
+    });
+    const base = siteUrl();
+    return {
+      slug: row.slug,
+      listed: true,
+      url: `${base}/statuslines/${row.slug}`,
+      unaudited: true,
+      warning:
+        "This listing has NOT been security reviewed. It shows a prominent UNAUDITED warning, has no owner, and is always free. Installers are told to read every line before running it.",
+      fundAudit: `Anyone can fund the LLM security audit: POST ${base}/api/audit with {"slug": "${row.slug}"} ($0.15 via x402/MPP). An audit that rejects delists the script.`,
+      scriptSha256: sha256Hex(body.script),
+    };
+  });
+
+// --- Crowd-funded audit (anyone can pay, on any listing) ----------------------
+
+router
+  .route({ path: "audit", method: "POST" })
+  .paid(REGISTER_PRICE)
+  .body(z.object({ slug: z.string().regex(SLUG) }))
+  .inputExample({ slug: "neon-nights" })
+  .description(
+    `Fund an LLM security audit of any existing listing for a flat $${REGISTER_PRICE} — typically an UNAUDITED unauthenticated submission, but re-auditing is allowed. The verdict, summary, and capabilities are stamped on the listing. An audit that REJECTS delists the script. The fee funds the audit and is not refunded regardless of verdict.`,
+  )
+  .validate(async (body: { slug?: string }) => {
+    if (!auditAvailable()) {
+      throw new HttpError(
+        "Audits are temporarily unavailable (audit service not configured)",
+        503,
+      );
+    }
+    const row = body?.slug ? await getStatusline(body.slug) : null;
+    if (!row) throw new HttpError("Statusline not found", 404);
+    if (!row.script) throw new HttpError("Statusline has no script", 404);
+  })
+  .handler(async ({ body, wallet }) => {
+    const row = await getStatusline(body.slug);
+    if (!row?.script) throw new HttpError("Statusline not found", 404);
+    const audit = await auditScript({
+      script: row.script,
+      name: row.name,
+      description: row.description,
+      author: row.authorWallet ?? "unauthenticated submission",
+    });
+    const flags = scanRedFlags(row.script);
+    if (audit.verdict === "approve" && hasHighSeverity(flags)) {
+      audit.verdict = "reject";
+      audit.risks = [
+        ...audit.risks,
+        ...flags.filter((f) => f.severity === "high").map((f) => f.label),
+      ];
+    } else if (audit.verdict === "approve" && flags.length > 0) {
+      audit.verdict = "caution";
+    }
+    await updateStatuslineAudit(row.slug, {
+      auditVerdict: audit.verdict,
+      auditSummary: audit.summary,
+      auditModel: audit.model,
+      capabilities: audit.capabilities.length
+        ? audit.capabilities
+        : detectCapabilities(row.script),
+      redFlags: flags.map((f) => `${f.severity}: ${f.label}`),
+    });
+    const rejected = audit.verdict === "reject";
+    if (rejected) await setHidden(row.slug, true);
+    return {
+      slug: row.slug,
+      verdict: audit.verdict,
+      summary: audit.summary,
+      risks: audit.risks,
+      auditedBy: audit.model,
+      fundedBy: wallet ?? "unknown",
+      delisted: rejected,
+      note: rejected
+        ? "The audit rejected this script — the listing has been delisted. The fee paid for the analysis."
+        : "Audit results are now shown on the listing. Audits are advisory — installers should still read the script.",
     };
   });
 

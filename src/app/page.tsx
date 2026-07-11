@@ -99,6 +99,7 @@ export default async function HomePage({
                 <StatuslineEntry
                   rank={i + 1}
                   defaultCc={i === 0}
+                  unaudited={!row.auditVerdict}
                   slug={row.slug}
                   name={row.name}
                   author={displayAuthor(row.authorHandle)}

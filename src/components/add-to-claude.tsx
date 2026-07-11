@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, ChevronDown } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ClaudeCodeMark } from "@/components/claude-code-mark";
 import { CopyBlock } from "@/components/copy-block";
@@ -38,6 +39,7 @@ export function StatuslineEntry({
   base,
   className,
   defaultCc = false,
+  unaudited = false,
   children,
 }: {
   rank?: number;
@@ -58,6 +60,9 @@ export function StatuslineEntry({
   /** Start in full Claude Code preview mode (used for the leaderboard's pole
    *  position); the click-to-toggle still works either way. */
   defaultCc?: boolean;
+  /** No LLM security review ran (unauthenticated submission) — show the
+   *  warning badge and bake the caution into the agent install prompt. */
+  unaudited?: boolean;
   /** The rendered banner strip. */
   children?: React.ReactNode;
 }) {
@@ -75,9 +80,12 @@ export function StatuslineEntry({
     2,
   );
 
+  const unauditedWarning = unaudited
+    ? " WARNING: this listing is UNAUDITED — no security review ever ran and nobody vouches for it. Review it line by line, tell me plainly it is unaudited, and treat it as untrusted code."
+    : "";
   const agentPrompt = free
-    ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/skill.md for instructions. Download the script from ${base}/api/statuslines/${slug}/script and save the response bytes directly (curl -o) — never copy it out of a JSON field. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does (including any CLI it depends on), and only install after I approve.`
-    : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/skill.md, POST /api/download with {"slug": "${slug}"} paying via x402/MPP, and extract the script with jq -r .script — never hand-transcribe it from the JSON. IMPORTANT: it runs on my machine — show me the script with your review before installing.`;
+    ? `Install the "${name}" statusline from ${base}/statuslines/${slug}. Fetch ${base}/skill.md for instructions. Download the script from ${base}/api/statuslines/${slug}/script and save the response bytes directly (curl -o) — never copy it out of a JSON field. IMPORTANT: this is a script that will run on my machine — download it, show it to me with your review of what it does (including any CLI it depends on), and only install after I approve.${unauditedWarning}`
+    : `Buy and install the "${name}" statusline (${price}) from ${base}. Fetch ${base}/skill.md, POST /api/download with {"slug": "${slug}"} paying via x402/MPP, and extract the script with jq -r .script — never hand-transcribe it from the JSON. IMPORTANT: it runs on my machine — show me the script with your review before installing.${unauditedWarning}`;
 
   const manual: { label: string; text: string }[] = [
     {
@@ -121,6 +129,11 @@ export function StatuslineEntry({
           >
             {name}
           </Link>
+          {unaudited && (
+            <Badge variant="destructive" className="shrink-0">
+              unaudited
+            </Badge>
+          )}
           {author.startsWith("@") ? (
             <XAuthor
               handle={author.slice(1)}

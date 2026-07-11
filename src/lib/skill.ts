@@ -43,7 +43,11 @@ agentcash CLI/MCP or any x402 client. Full schema: ${base}/openapi.json
    raw script). Run \`shasum -a 256 ~/.claude/statuslines/{slug}\` and compare.
    Mismatch = the transfer corrupted the bytes — re-download; do not install.
 3. Review it and show the user your assessment — including any external
-   dependencies it needs (CLIs it invokes, files it reads). Install only on approval.
+   dependencies it needs (CLIs it invokes, files it reads). Check the listing's
+   \`audit\` field: if it is absent the script is **UNAUDITED** (published
+   without a wallet, no security review, nobody vouches for it) — say so
+   plainly, review it line by line as untrusted code, and mention that anyone
+   can fund its audit (see below). Install only on approval.
 4. \`chmod +x ~/.claude/statuslines/{slug}\`, then set in
    \`~/.claude/settings.json\` (state the exact change to the user):
 
@@ -97,6 +101,27 @@ Outcomes:
   refunded (it bought the audit). Fix and resubmit.
 - \`409\` slug taken · \`503\` audit service unavailable (retry later). Both fail
   **before** payment — nothing was charged.
+
+## Publish without a wallet (free, UNAUDITED)
+
+For users without agentcash/x402: \`POST ${base}/api/submit\` — plain HTTP, no
+payment, no signature. Same fields as register **minus \`priceUsd\`** (no
+wallet means no payout target, so the listing is always free to install).
+Trade-offs, which you must tell the user before submitting:
+
+- **No security audit** — the listing carries a prominent UNAUDITED warning.
+  Only the deterministic scanner runs; high-severity hits are rejected.
+- **No owner** — authorship can't be claimed, the preview can't be updated,
+  and it can never be sold.
+- Rate-limited to a few submissions per caller per day.
+
+## Fund an audit on any listing
+
+\`POST ${base}/api/audit\` with \`{"slug": "..."}\` — flat $0.15 via x402/MPP,
+payable by **anyone**, not just the publisher. Runs the same LLM security
+audit used at registration and stamps the verdict, summary, and capabilities
+on the listing. An audit that **rejects delists the script**. The fee bought
+the analysis and is not refunded regardless of verdict.
 
 **Optional identity**: listings show "anonymous" until the wallet connects an
 X account — \`POST ${base}/api/identity/connect\` (SIWX-signed, free, no body)
