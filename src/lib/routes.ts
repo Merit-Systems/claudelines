@@ -955,18 +955,34 @@ async function auditAndPersist(entry: {
 }
 
 router
-  .route({ path: "admin/reaudit", method: "POST" })
-  .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
+  .route({ path: "reaudit", method: "POST" })
+  .unprotected()
   .body(z.object({ slug: z.string().regex(SLUG).optional() }))
   .description(
-    "Admin: run the security audit on a slug, or on every never-audited listing when no slug is given. Persists verdict/summary/capabilities and auto-hides rejects. Requires ADMIN_TOKEN.",
+    "Permissionlessly audit any statusline that has never been audited (e.g. seeded rows). Pass a slug for one, or omit to audit every unaudited listing. Cost-bounded: a listing that already has a verdict is a no-op — the audit never re-runs, so this can't be used to burn the audit budget. Persists verdict/summary/capabilities and auto-hides rejects.",
   )
+  .inputExample({ slug: "usage-bars" })
   .handler(async ({ body }) => {
     if (body.slug) {
       const row = await getStatusline(body.slug);
       if (!row) throw new HttpError("Statusline not found", 404);
+      if (row.auditVerdict) {
+        // Already audited — return the stored result, no LLM call.
+        return {
+          results: [
+            {
+              slug: row.slug,
+              verdict: row.auditVerdict,
+              model: row.auditModel,
+              alreadyAudited: true,
+            },
+          ],
+        };
+      }
       return { results: [await auditAndPersist(row)] };
     }
+    // Bulk: only ever touches rows with no verdict, so repeated calls converge
+    // to a no-op instead of re-billing audits.
     const pending = await listUnaudited();
     const results = [];
     for (const entry of pending) results.push(await auditAndPersist(entry));
