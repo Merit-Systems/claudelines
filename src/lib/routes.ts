@@ -33,6 +33,7 @@ import {
   addReport,
   getFeedback,
   recordInstall,
+  deleteStatusline,
   setHidden,
   updateStatuslineAudit,
   updateStatuslinePreview,
@@ -910,6 +911,19 @@ router
   .handler(async ({ body }) => {
     await setHidden(body.slug, body.hidden);
     return { slug: body.slug, hidden: body.hidden };
+  });
+
+router
+  .route({ path: "admin/delete", method: "POST" })
+  .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
+  .body(z.object({ slug: z.string().regex(SLUG) }))
+  .description(
+    "Admin: permanently delete a listing and its events, freeing the slug. Unlike delist, this is irreversible — use for cleanup of broken or malicious uploads (unowned wallet-less submissions have no other update path). Requires ADMIN_TOKEN.",
+  )
+  .handler(async ({ body }) => {
+    const deleted = await deleteStatusline(body.slug);
+    if (!deleted) throw new HttpError("Statusline not found", 404);
+    return { slug: body.slug, deleted: true };
   });
 
 /** Run the standard audit + red-flag pipeline on one script, persist, hide on reject. */

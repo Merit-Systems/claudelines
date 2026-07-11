@@ -245,6 +245,16 @@ export async function updateStatuslinePreview(
   await db().update(statuslines).set(set).where(eq(statuslines.slug, slug));
 }
 
+/** Hard-delete a listing (events cascade). Admin-only cleanup — frees the
+ *  slug, unlike delisting. */
+export async function deleteStatusline(slug: string): Promise<boolean> {
+  const gone = await db()
+    .delete(statuslines)
+    .where(eq(statuslines.slug, slug))
+    .returning({ slug: statuslines.slug });
+  return gone.length > 0;
+}
+
 /** Counts every settled sale (incl. self-buys) — drives the fee rotation. */
 export async function bumpSalesCount(row: StatuslineRow): Promise<void> {
   await db()
