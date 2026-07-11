@@ -32,9 +32,31 @@ export const TERM_THEMES = {
 
 export type TermTheme = keyof typeof TERM_THEMES;
 
+// Grapheme segmentation so combining marks stay glued to their base char.
+const segmenter =
+  typeof Intl !== "undefined" && "Segmenter" in Intl
+    ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+    : null;
+
+function graphemes(text: string): string[] {
+  if (segmenter) return [...segmenter.segment(text)].map((s) => s.segment);
+  return Array.from(text);
+}
+
+// Terminal double-width cells: East Asian Wide/Fullwidth ranges and emoji.
+const WIDE =
+  /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦\u{1F300}-\u{1FAFF}\u{20000}-\u{2FFFD}]/u;
+
 function Run({ run }: { run: StyledRun }) {
-  if (run.spacer) {
-    return <span className="min-w-[1ch] flex-1" aria-hidden />;
+  // Whitespace positions the art — give it exactly its captured width.
+  if (/^\s+$/.test(run.text)) {
+    return (
+      <span
+        className="shrink-0"
+        style={{ width: `${run.text.length}ch` }}
+        aria-hidden
+      />
+    );
   }
   return (
     <span
@@ -47,7 +69,18 @@ function Run({ run }: { run: StyledRun }) {
         fontStyle: run.italic ? "italic" : "normal",
       }}
     >
-      <span className="whitespace-pre">{run.text}</span>
+      {/* One fixed 1ch (2ch for wide chars) cell per grapheme: font-fallback
+          glyphs with off-grid advance widths can't shift the columns after
+          them, so captured frames stay aligned across both lines. */}
+      {graphemes(run.text).map((g, i) => (
+        <span
+          key={i}
+          className="inline-block shrink-0 overflow-visible whitespace-pre"
+          style={{ width: WIDE.test(g) ? "2ch" : "1ch" }}
+        >
+          {g}
+        </span>
+      ))}
     </span>
   );
 }

@@ -12,8 +12,6 @@ export interface StyledRun {
   bold?: boolean;
   dim?: boolean;
   italic?: boolean;
-  /** Flexible gap from captured right-justified padding — grows to fill. */
-  spacer?: boolean;
 }
 
 const BASE16: Record<number, string> = {
@@ -97,14 +95,10 @@ export function parseAnsi(raw: string): StyledRun[][] {
           .replace(/\x1b[^a-zA-Z]*[a-zA-Z]/g, "")
           .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
         if (!text) continue;
-        // Long whitespace runs are almost always COLUMNS-padding from a
-        // right-justified capture; make them flexible so the layout
-        // re-justifies to the preview's real width instead of clipping.
-        if (/^\s{4,}$/.test(text)) {
-          runs.push({ text: "", spacer: true });
-        } else {
-          runs.push({ text, ...state });
-        }
+        // Whitespace is rendered at its captured width. Reflowing gaps to the
+        // preview's width (old behavior) destroys position-encoded layouts —
+        // animation frames, ASCII art — where every column matters.
+        runs.push({ text, ...state });
       }
     }
     if (runs.length) lines.push(runs);
