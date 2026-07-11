@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  DollarSign,
+  Download,
+} from "lucide-react";
 
 import { StatuslineEntry } from "@/components/add-to-claude";
 import { ClaudeCodeMark } from "@/components/claude-code-mark";
@@ -40,14 +46,18 @@ export default async function HomePage({
         : activeDirection === "asc"
           ? ArrowUp
           : ArrowDown;
+    const MetricIcon = key === "installs" ? Download : DollarSign;
 
     return (
       <Link
         href={`/?sort=${key}&direction=${nextDirection}`}
-        className="hover:text-foreground flex items-center justify-end gap-1 transition-colors"
+        className="hover:text-foreground flex items-center justify-center gap-0.5 transition-colors sm:justify-end sm:gap-1"
         aria-label={`Sort by ${key}, ${nextDirection}ending`}
       >
-        <span>{key === "installs" ? "Installs" : "Revenue"}</span>
+        <MetricIcon className="size-3 sm:hidden" aria-hidden />
+        <span className="hidden sm:inline">
+          {key === "installs" ? "Installs" : "Revenue"}
+        </span>
         <Icon
           className={key === activeSort ? "size-3" : "size-3 opacity-40"}
           aria-hidden
@@ -86,12 +96,12 @@ export default async function HomePage({
 
       <section className="flex flex-col gap-3">
         <div>
-          <div className="text-muted-foreground grid grid-cols-[1rem_minmax(0,1fr)_4.5rem_5.5rem] items-center gap-2 border border-b-0 bg-muted/30 px-3 py-2 font-mono text-[11px] sm:grid-cols-[1rem_minmax(0,1fr)_5.5rem_6.5rem_7.5rem]">
+          <div className="text-muted-foreground grid grid-cols-[1rem_minmax(0,1fr)_3rem_3.75rem_4.75rem] items-center gap-x-1.5 border border-b-0 bg-muted/30 px-3 py-2 font-mono text-[11px] sm:grid-cols-[1rem_minmax(0,1fr)_5.5rem_6.5rem_7.5rem] sm:gap-x-2">
             <span className="text-right">#</span>
-            <span>Status line</span>
+            <span className="truncate">Status line</span>
             {sortControl("installs")}
             {sortControl("revenue")}
-            <span className="hidden sm:block" aria-hidden />
+            <span aria-hidden />
           </div>
           <ul className="flex flex-col divide-y border">
             {rows.map((row, i) => (

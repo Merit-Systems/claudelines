@@ -116,9 +116,9 @@ export function StatuslineEntry({
     >
       <div
         className={cn(
-          "items-center gap-2 text-xs",
+          "items-center gap-x-1.5 text-xs sm:gap-x-2",
           revenue
-            ? "grid grid-cols-[1rem_minmax(0,1fr)_4.5rem_5.5rem] sm:grid-cols-[1rem_minmax(0,1fr)_5.5rem_6.5rem_7.5rem]"
+            ? "grid grid-cols-[1rem_minmax(0,1fr)_3rem_3.75rem_4.75rem] sm:grid-cols-[1rem_minmax(0,1fr)_5.5rem_6.5rem_7.5rem]"
             : "flex",
         )}
       >
@@ -127,7 +127,7 @@ export function StatuslineEntry({
             {rank}
           </span>
         )}
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1 sm:gap-2">
           <Link
             href={`/statuslines/${slug}`}
             className={cn(
@@ -138,8 +138,13 @@ export function StatuslineEntry({
             {name}
           </Link>
           {unaudited && (
-            <Badge variant="destructive" className="shrink-0">
-              unaudited
+            <Badge
+              variant="destructive"
+              className="shrink-0 px-1 sm:px-2"
+              title="Unaudited"
+            >
+              <span className="sm:hidden">!</span>
+              <span className="hidden sm:inline">unaudited</span>
             </Badge>
           )}
           {author.startsWith("@") ? (
@@ -148,21 +153,28 @@ export function StatuslineEntry({
               avatarUrl={avatarUrl}
               className="truncate"
             />
-          ) : wallet ? (
-            <Link
-              href={`/creators/${wallet}`}
-              title="Unverified creator — view their other statuslines"
-              className="bg-muted text-muted-foreground hover:text-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] transition-colors"
-            >
-              ?
-            </Link>
           ) : (
-            <span
-              title="Unverified creator"
-              className="bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px]"
-            >
-              ?
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {wallet ? (
+                  <Link
+                    href={`/creators/${wallet}`}
+                    aria-label="Anonymous creator"
+                    className="bg-muted text-muted-foreground hover:text-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px] transition-colors"
+                  >
+                    ?
+                  </Link>
+                ) : (
+                  <span
+                    aria-label="Anonymous creator"
+                    className="bg-muted text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-full border text-[9px]"
+                  >
+                    ?
+                  </span>
+                )}
+              </TooltipTrigger>
+              <TooltipContent>Anonymous</TooltipContent>
+            </Tooltip>
           )}
         </div>
         <span
@@ -180,8 +192,7 @@ export function StatuslineEntry({
         )}
         <div
           className={cn(
-            "flex shrink-0 items-center",
-            revenue && "col-start-2 justify-self-start sm:col-start-auto sm:justify-self-end",
+            "flex shrink-0 items-center justify-self-end",
           )}
         >
           <Tooltip>
@@ -189,7 +200,8 @@ export function StatuslineEntry({
               <Button
                 variant="outline"
                 size="xs"
-                className="rounded-r-none"
+                className="w-[3.25rem] rounded-r-none px-1.5 sm:w-auto sm:px-2"
+                aria-label={copied ? "Prompt copied" : "Add to Claude Code"}
                 onClick={() => {
                   navigator.clipboard.writeText(agentPrompt);
                   setCopied(true);
@@ -199,7 +211,7 @@ export function StatuslineEntry({
                 {copied ? (
                   <>
                     <Check className="size-3 text-primary" />
-                    Prompt copied
+                    <span className="hidden sm:inline">Copied</span>
                   </>
                 ) : (
                   <>
@@ -216,7 +228,7 @@ export function StatuslineEntry({
           <Button
             variant={manualOpen ? "secondary" : "outline"}
             size="xs"
-            className="-ml-px rounded-l-none px-1"
+            className="-ml-px w-6 rounded-l-none px-0"
             aria-label="Manual install"
             onClick={() => setManualOpen((o) => !o)}
           >
