@@ -37,6 +37,7 @@ export function StatuslineEntry({
   priceUsd,
   base,
   className,
+  defaultCc = false,
   children,
 }: {
   rank?: number;
@@ -54,12 +55,15 @@ export function StatuslineEntry({
   priceUsd: string;
   base: string;
   className?: string;
+  /** Start in full Claude Code preview mode (used for the leaderboard's pole
+   *  position); the click-to-toggle still works either way. */
+  defaultCc?: boolean;
   /** The rendered banner strip. */
   children?: React.ReactNode;
 }) {
   const [manualOpen, setManualOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [cc, setCc] = useState(false);
+  const [cc, setCc] = useState(defaultCc);
   const { theme } = usePreviewTheme();
   const free = Number(priceUsd) === 0;
   const price = `$${Number(priceUsd).toFixed(2)}`;

@@ -98,6 +98,7 @@ export default async function HomePage({
               <li key={row.slug}>
                 <StatuslineEntry
                   rank={i + 1}
+                  defaultCc={i === 0}
                   slug={row.slug}
                   name={row.name}
                   author={displayAuthor(row.authorHandle)}
