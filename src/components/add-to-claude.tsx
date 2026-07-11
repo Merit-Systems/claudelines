@@ -209,10 +209,7 @@ export function StatuslineEntry({
         </div>
       </div>
       {/* click anywhere on the black area to preview it inside Claude Code */}
-      <div
-        className="group relative"
-        style={TERM_THEMES[theme] as React.CSSProperties}
-      >
+      <div style={TERM_THEMES[theme] as React.CSSProperties}>
         <button
           type="button"
           onClick={() => setCc((v) => !v)}
@@ -229,19 +226,6 @@ export function StatuslineEntry({
             <div className="px-3 py-2.5">{children}</div>
           )}
         </button>
-        {!cc && (
-          <span
-            className="pointer-events-none absolute top-full right-0 z-10 -translate-y-px flex items-center gap-1 border border-t-0 px-2 py-1 font-mono text-[10px] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-            style={{
-              color: "var(--term-muted)",
-              background: "var(--term-bg)",
-              borderColor: "var(--term-border)",
-            }}
-          >
-            <ClaudeCodeMark className="size-3" />
-            Preview
-          </span>
-        )}
       </div>
       {manualOpen && (
         <div className="flex flex-col gap-3 rounded-lg border p-3">
