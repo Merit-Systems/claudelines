@@ -695,11 +695,11 @@ router
 /** First audit of an unaudited listing — the community-defense case. */
 const AUDIT_PRICE_FIRST = REGISTER_PRICE;
 /** Re-audit of an already-audited listing. Priced at ~10x the measured
- *  audit cost (one Sonnet call ≈ $0.03 from billing data): the owner's
+ *  audit cost (one Opus 4.8 call with adaptive thinking ≈ $0.05 estimated; re-measure from billing): the owner's
  *  audit came bundled with registration, so re-audit callers are
  *  re-rollers — the margin makes verdict-fishing against a competitor
  *  uneconomical while keeping legitimate refresh audits available. */
-const AUDIT_PRICE_REAUDIT = "0.30";
+const AUDIT_PRICE_REAUDIT = "0.50";
 
 const auditBody = z
   .object({

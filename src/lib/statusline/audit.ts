@@ -54,7 +54,7 @@ function agentcashAvailable(): boolean {
 }
 
 /** OpenAI-compatible model name for the agentcash Anthropic proxy. */
-const PROXY_MODEL = process.env.AUDIT_MODEL ?? "claude-sonnet-4-5";
+const PROXY_MODEL = process.env.AUDIT_MODEL ?? "claude-opus-4-8";
 const PROXY_URL =
   process.env.AUDIT_PROXY_URL ??
   "https://anthropic.mpp.tempo.xyz/v1/chat/completions";
@@ -80,7 +80,7 @@ ${input.script}
 
 /** Direct Anthropic API (needs ANTHROPIC_API_KEY). Returns model text. */
 async function auditViaApi(prompt: string): Promise<string> {
-  const model = process.env.AUDIT_MODEL ?? "claude-sonnet-4-5";
+  const model = process.env.AUDIT_MODEL ?? "claude-opus-4-8";
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -90,7 +90,11 @@ async function auditViaApi(prompt: string): Promise<string> {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1024,
+      // Opus runs without thinking when the field is omitted — turn adaptive
+      // thinking on for a deeper adversarial read; the JSON verdict itself is
+      // small, so the headroom is for reasoning, not output.
+      max_tokens: 8192,
+      thinking: { type: "adaptive" },
       system: AUDIT_SYSTEM,
       messages: [{ role: "user", content: prompt }],
     }),
@@ -110,7 +114,7 @@ async function auditViaApi(prompt: string): Promise<string> {
 function auditViaAgentcash(prompt: string): string {
   const body = JSON.stringify({
     model: PROXY_MODEL,
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [
       { role: "system", content: AUDIT_SYSTEM },
       { role: "user", content: prompt },
@@ -148,7 +152,7 @@ export async function auditScript(input: {
       status: 503,
     });
   }
-  const model = process.env.AUDIT_MODEL ?? "claude-sonnet-4-5";
+  const model = process.env.AUDIT_MODEL ?? "claude-opus-4-8";
   const prompt = userMessage(input);
 
   // Prefer a raw API key (works headless); else pay per-audit via agentcash.

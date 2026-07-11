@@ -119,7 +119,7 @@ Trade-offs, which you must tell the user before submitting:
 
 \`POST ${base}/api/audit\` with \`{"slug": "..."}\` — via x402/MPP, payable by
 **anyone**, not just the publisher. **$0.15 for the first audit** of an
-unaudited listing; **$0.30 to re-audit** one that already has a verdict
+unaudited listing; **$0.50 to re-audit** one that already has a verdict
 (10x the audit's actual cost, to deter verdict re-rolling — owners already
 got an audit with registration). Runs the same LLM security
 audit used at registration and stamps the verdict, summary, and capabilities
