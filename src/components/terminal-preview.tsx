@@ -60,7 +60,7 @@ function Run({ run }: { run: StyledRun }) {
   }
   return (
     <span
-      className="inline-flex h-[1.9em] shrink-0 items-center"
+      className="inline-flex h-full shrink-0 items-center"
       style={{
         color: run.fg ?? DEFAULT_FG,
         background: run.bg ?? "transparent",
@@ -101,12 +101,18 @@ export function ListingPreview({
     );
   }
   const lines = parseAnsi(previewAnsi);
+  // Multi-line art must stack flush — box-drawing characters are designed to
+  // touch across rows. Single lines keep the taller row for presence.
+  const rowHeight = lines.length > 1 ? "h-[1em] leading-none" : "h-[1.9em]";
   return (
     <div className={cn("flex flex-col", className)}>
       {lines.map((runs, li) => (
         <div
           key={li}
-          className="no-scrollbar flex items-center overflow-x-auto font-mono text-[13px]"
+          className={cn(
+            "no-scrollbar flex items-center overflow-x-auto font-mono text-[13px]",
+            rowHeight,
+          )}
         >
           {runs.map((run, i) => (
             <Run key={i} run={run} />
