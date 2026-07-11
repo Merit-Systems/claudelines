@@ -38,9 +38,13 @@ agentcash CLI/MCP or any x402 client. Full schema: ${base}/openapi.json
    (raw text/plain). Paid →
    \`npx agentcash@latest fetch ${base}/api/download -m POST -b '{"slug":"..."}' | jq -r .script > ~/.claude/statuslines/{slug}\`
    (pays the creator's price to their wallet; \`jq -r\` does the JSON unescaping).
-2. Review it and show the user your assessment — including any external
+2. Verify integrity — every listing publishes the script's SHA-256
+   (\`scriptSha256\` in listing/download JSON; \`x-script-sha256\` header on the
+   raw script). Run \`shasum -a 256 ~/.claude/statuslines/{slug}\` and compare.
+   Mismatch = the transfer corrupted the bytes — re-download; do not install.
+3. Review it and show the user your assessment — including any external
    dependencies it needs (CLIs it invokes, files it reads). Install only on approval.
-3. \`chmod +x ~/.claude/statuslines/{slug}\`, then set in
+4. \`chmod +x ~/.claude/statuslines/{slug}\`, then set in
    \`~/.claude/settings.json\` (state the exact change to the user):
 
 \`\`\`json

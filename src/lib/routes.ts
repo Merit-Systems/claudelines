@@ -56,6 +56,14 @@ const priceString = z
   .string()
   .regex(/^\d{1,9}(\.\d{1,6})?$/, 'Decimal USD string, e.g. "0.05"');
 
+/** Integrity hash surfaced everywhere the script is. Lets installers verify
+ *  the saved bytes and fail loudly on transfer corruption (e.g. a script
+ *  hand-transcribed out of a JSON field with its backslashes still doubled).
+ *  Derived from the stored script at read time, never persisted. */
+function sha256Hex(script: string): string {
+  return createHash("sha256").update(script, "utf8").digest("hex");
+}
+
 function publicEntry(row: StatuslineWithAuthor, includePayload: boolean) {
   const free = Number(row.priceUsd) === 0;
   return {
@@ -80,6 +88,9 @@ function publicEntry(row: StatuslineWithAuthor, includePayload: boolean) {
     installs: row.installs,
     createdAt: row.createdAt.toISOString(),
     previewAnsi: row.previewAnsi ?? undefined,
+    // Published for every listing (it reveals nothing about paid sources):
+    // installers verify their saved file against it after download.
+    scriptSha256: row.script ? sha256Hex(row.script) : undefined,
     // The paid script is the product — only free scripts are inlined.
     script: includePayload && free ? (row.script ?? undefined) : undefined,
   };
@@ -108,13 +119,15 @@ function installInstructions(row: StatuslineRow) {
   return {
     scriptUrl: `/api/statuslines/${row.slug}/script`,
     scriptPath: `~/.claude/statuslines/${row.slug}`,
+    sha256: row.script ? sha256Hex(row.script) : undefined,
+    verify: `shasum -a 256 ~/.claude/statuslines/${row.slug} — must equal sha256. A mismatch means the transfer corrupted the bytes (usually a script hand-copied out of a JSON field); re-download the raw bytes instead of installing.`,
     settings: {
       statusLine: {
         type: "command",
         command: `~/.claude/statuslines/${row.slug}`,
       },
     },
-    note: "This script EXECUTES on the user's machine. REVIEW IT before installing — if you are an agent, show the user the source and your read of what it does, and install only after they approve. Save it to scriptPath, chmod +x it, then merge `settings` into ~/.claude/settings.json.",
+    note: "This script EXECUTES on the user's machine. REVIEW IT before installing — if you are an agent, show the user the source and your read of what it does, and install only after they approve. Save the response bytes to scriptPath (never transcribe from JSON), check `verify`, chmod +x it, then merge `settings` into ~/.claude/settings.json.",
   };
 }
 
@@ -188,7 +201,10 @@ router
       ipHash: callerHash(request),
     });
     return new Response(row.script, {
-      headers: { "content-type": "text/plain; charset=utf-8" },
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+        "x-script-sha256": sha256Hex(row.script),
+      },
     });
   });
 
@@ -270,6 +286,7 @@ router
       name: row.name,
       capabilities: row.capabilities,
       script: row.script ?? undefined,
+      scriptSha256: row.script ? sha256Hex(row.script) : undefined,
       install: installInstructions(row),
     };
   });
@@ -394,6 +411,7 @@ router
       },
       capabilities: row.capabilities,
       priceUsd: row.priceUsd,
+      scriptSha256: sha256Hex(body.script),
       // Always tell the creator how their authorship shows and how to claim it.
       connectTwitter: identity?.verified
         ? {
