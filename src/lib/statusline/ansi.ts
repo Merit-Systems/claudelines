@@ -101,7 +101,20 @@ export function parseAnsi(raw: string): StyledRun[][] {
         runs.push({ text, ...state });
       }
     }
-    if (runs.length) lines.push(runs);
+    // Trailing whitespace is pure COLUMNS-padding fluff — trim it (unless a
+    // background color makes it a visible block). Leading/interior gaps are
+    // position data and stay untouched.
+    while (runs.length) {
+      const last = runs[runs.length - 1];
+      if (last.bg || !/\s$/.test(last.text)) break;
+      last.text = last.text.replace(/\s+$/, "");
+      if (last.text) break;
+      runs.pop();
+    }
+    lines.push(runs);
   }
+  // Keep interior blank lines (they're part of multi-line art) but drop
+  // trailing empties from a final newline in the capture.
+  while (lines.length && lines[lines.length - 1].length === 0) lines.pop();
   return lines.length ? lines : [[{ text: "(no preview provided)", dim: true }]];
 }

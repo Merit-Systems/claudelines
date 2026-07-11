@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { parseAnsi, type StyledRun } from "@/lib/statusline/ansi";
 import { ClaudeCodeMark } from "@/components/claude-code-mark";
@@ -115,6 +115,47 @@ export function ListingPreview({
     return () => clearInterval(id);
   }, [frames]);
 
+  // Small screens: captures are often wider than the viewport. All lines
+  // share ONE scroll container (they must pan together — two-line art
+  // desyncs with per-line scrolling), and moderately-wide captures are
+  // scaled down to fit. Below MIN_SCALE text turns unreadable, so we pin
+  // the scale there and let the container scroll the rest.
+  const MIN_SCALE = 0.55;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const maxNaturalW = useRef(0);
+  const [fit, setFit] = useState({ scale: 1, height: 0 });
+
+  useEffect(() => {
+    maxNaturalW.current = 0; // new capture → forget the old widest frame
+  }, [previewAnsi, previewFrames]);
+
+  useEffect(() => {
+    const measure = () => {
+      const c = containerRef.current;
+      const inner = innerRef.current;
+      if (!c || !inner) return;
+      // scrollWidth is pre-transform layout width. Track the widest frame so
+      // the scale doesn't jitter as animation frames change width.
+      maxNaturalW.current = Math.max(maxNaturalW.current, inner.scrollWidth);
+      const natural = maxNaturalW.current;
+      const scale =
+        natural > c.clientWidth
+          ? Math.max(c.clientWidth / natural, MIN_SCALE)
+          : 1;
+      const height = inner.offsetHeight * scale;
+      setFit((prev) =>
+        prev.scale === scale && prev.height === height
+          ? prev
+          : { scale, height },
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  });
+
   const source = frames ? frames[frame % frames.length] : previewAnsi;
   if (!source) {
     return (
@@ -128,20 +169,31 @@ export function ListingPreview({
   // touch across rows. Single lines keep the taller row for presence.
   const rowHeight = lines.length > 1 ? "h-[1em] leading-none" : "h-[1.9em]";
   return (
-    <div className={cn("flex flex-col", className)}>
-      {lines.map((runs, li) => (
+    <div
+      ref={containerRef}
+      className={cn("no-scrollbar overflow-x-auto", className)}
+    >
+      <div style={fit.height ? { height: fit.height } : undefined}>
         <div
-          key={li}
-          className={cn(
-            "no-scrollbar flex items-center overflow-x-auto font-mono text-[13px]",
-            rowHeight,
-          )}
+          ref={innerRef}
+          className="flex w-max origin-top-left flex-col"
+          style={fit.scale < 1 ? { transform: `scale(${fit.scale})` } : undefined}
         >
-          {runs.map((run, i) => (
-            <Run key={i} run={run} />
+          {lines.map((runs, li) => (
+            <div
+              key={li}
+              className={cn(
+                "flex w-max items-center font-mono text-[13px]",
+                rowHeight,
+              )}
+            >
+              {runs.map((run, i) => (
+                <Run key={i} run={run} />
+              ))}
+            </div>
           ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
