@@ -135,8 +135,9 @@ chmod +x ~/.claude/statuslines/$slug`}
           else is listed <span className="text-foreground">unaudited</span>{" "}
           with a prominent warning. Anyone can later fund the full LLM audit
           through POST /api/audit: $0.15 for the first audit of an unaudited
-          listing, $0.50 to re-audit one that already has a verdict (priced
-          well above audit cost to deter verdict re-rolling). The verdict is
+          listing, $0.30 to re-audit one that already has a verdict (ten
+          times the audit&apos;s actual cost, to deter verdict re-rolling).
+          The verdict is
           stamped on the listing, and an audit that rejects delists the
           script.
         </p>
@@ -223,7 +224,7 @@ chmod +x ~/.claude/statuslines/$slug`}
                 [
                   "POST",
                   "/api/audit",
-                  "Fund an audit: $0.15 first, $0.50 re-audit",
+                  "Fund an audit: $0.15 first, $0.30 re-audit",
                 ],
                 [
                   "POST",

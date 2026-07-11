@@ -46,10 +46,10 @@ hits are rejected), have no owner, and can never be sold. They are marked
 unaudited with a prominent warning until someone funds the audit. Anyone —
 not just the publisher — can pay through `POST /api/audit` to run the full
 LLM review on any listing: $0.15 for the first audit of an unaudited
-listing, $0.50 to re-audit one that already has a verdict (priced at roughly
-ten times the worst-case audit cost so re-rolling a competitor's verdict is
-uneconomical). An audit that rejects delists the script. Free submissions
-are rate-limited per caller.
+listing, $0.30 to re-audit one that already has a verdict (ten times the
+audit's actual cost, so re-rolling a competitor's verdict is uneconomical).
+An audit that rejects delists the script. Free submissions are rate-limited
+per caller.
 
 ### Installing
 
@@ -67,7 +67,7 @@ The install flow tells the user or agent to:
 - Free downloads require no payment.
 - Publishing costs $0.15 and funds the audit; wallet-less publishing is free
   and unaudited.
-- Anyone can fund an audit of any listing: $0.15 first audit, $0.50 re-audit.
+- Anyone can fund an audit of any listing: $0.15 first audit, $0.30 re-audit.
 - Publishers choose the price of paid scripts.
 - Paid downloads settle directly to the publisher's wallet.
 - ClaudeLines takes no platform fee and does not hold creator payments.
@@ -86,7 +86,7 @@ The install flow tells the user or agent to:
 | `POST` | `/api/download` | Creator-set price | Buy and download a paid script |
 | `POST` | `/api/register` | $0.15 | Audit and publish a script |
 | `POST` | `/api/submit` | None | Publish free without a wallet (unaudited) |
-| `POST` | `/api/audit` | $0.15 / $0.50 | Fund an LLM audit (first / re-audit) |
+| `POST` | `/api/audit` | $0.15 / $0.30 | Fund an LLM audit (first / re-audit) |
 | `POST` | `/api/identity/connect` | SIWX | Start X account verification |
 | `POST` | `/api/report` | SIWX | Submit a review or report |
 | `GET` | `/api/statuslines/{slug}/feedback` | None | Get reviews and reports |
