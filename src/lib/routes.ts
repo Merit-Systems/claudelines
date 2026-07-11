@@ -289,8 +289,30 @@ router
 
 // --- Purchase (creator-set price, paid to the creator) -----------------------
 
-const downloadBody = z.object({
-  slug: z.string().regex(SLUG),
+const downloadBody = z
+  .object({
+    slug: z.string().regex(SLUG).meta({ example: "cat-walk" }),
+  })
+  .meta({ example: { slug: "cat-walk" } });
+
+const installOutputSchema = z.object({
+  scriptUrl: z.string(),
+  scriptPath: z.string(),
+  sha256: z.string().optional(),
+  verify: z.string(),
+  settings: z.object({
+    statusLine: z.object({ type: z.literal("command"), command: z.string() }),
+  }),
+  note: z.string(),
+});
+
+const downloadOutputSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  capabilities: z.array(z.string()),
+  script: z.string().optional(),
+  scriptSha256: z.string().optional(),
+  install: installOutputSchema,
 });
 
 router
@@ -319,9 +341,32 @@ router
     },
   )
   .body(downloadBody)
-  .inputExample({ slug: "sunset-boulevard" })
+  .inputExample({ slug: "cat-walk" })
+  .output(downloadOutputSchema)
+  .outputExample({
+    slug: "cat-walk",
+    name: "Cat Walk",
+    capabilities: [],
+    script: "#!/bin/sh\nprintf 'example'\n",
+    scriptSha256:
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    install: {
+      scriptUrl: "/api/statuslines/cat-walk/script",
+      scriptPath: "~/.claude/statuslines/cat-walk",
+      sha256:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      verify: "Compare the downloaded script SHA-256 with scriptSha256.",
+      settings: {
+        statusLine: {
+          type: "command",
+          command: "~/.claude/statuslines/cat-walk",
+        },
+      },
+      note: "Review the script before installing it.",
+    },
+  })
   .description(
-    "Buy a paid statusline at the creator's asking price — payment settles directly to their wallet, no platform fee. Returns the script plus install instructions. REVIEW the script before installing.",
+    "Buy and download a paid status line. The publisher sets the price and receives the payment directly with no platform fee. Returns the script, integrity hash, and install instructions. Review the script before installing.",
   )
   .handler(async ({ body, wallet }) => {
     const row = await getStatusline(body.slug);
@@ -353,42 +398,101 @@ router
 
 // --- Publish (flat fee, funds the audit) -------------------------------------
 
+const registerExample = {
+  slug: "x402scan-registration-probe",
+  name: "Discovery Probe",
+  description: "Valid unpaid discovery probe payload.",
+  priceUsd: "0",
+  tags: ["discovery"],
+  script: "#!/bin/sh\nprintf 'discovery'\n",
+  previewAnsi: "discovery",
+};
+
 const registerBody = z.object({
-  slug: z.string().regex(SLUG, 'kebab-case, e.g. "neon-nights"').max(48),
-  name: printable(48).refine((v) => v.length >= 2, "Too short"),
-  description: printable(280).refine((v) => v.length >= 8, "Too short"),
+  slug: z
+    .string()
+    .regex(SLUG, 'kebab-case, e.g. "neon-nights"')
+    .max(48)
+    .meta({ example: registerExample.slug }),
+  name: printable(48)
+    .refine((v) => v.length >= 2, "Too short")
+    .meta({ example: registerExample.name }),
+  description: printable(280)
+    .refine((v) => v.length >= 8, "Too short")
+    .meta({ example: registerExample.description }),
   /** The statusline script, uploaded as-is. */
   script: z
     .string()
     .min(10)
     .max(32_768)
-    .refine((v) => !v.includes("\u0000"), { message: "Binary not allowed" }),
+    .refine((v) => !v.includes("\u0000"), { message: "Binary not allowed" })
+    .meta({ example: registerExample.script }),
   /** Captured sample output for the preview (echo '{}' | COLUMNS=120 <script>). */
-  previewAnsi: previewAnsiSchema,
+  previewAnsi: previewAnsiSchema.meta({ example: registerExample.previewAnsi }),
   /** Optional 1 fps animation: the same capture repeated on successive seconds. */
   previewFrames: previewFramesSchema.optional(),
-  priceUsd: priceString.default("0"),
+  priceUsd: priceString.default("0").meta({ example: registerExample.priceUsd }),
   tags: z
     .array(printable(24).refine((v) => v.length >= 1, "Empty tag"))
     .max(5)
-    .default([]),
-});
+    .default([])
+    .meta({ example: registerExample.tags }),
+}).meta({ example: registerExample });
+
+const registerOutputSchema = z.union([
+  z.object({
+    listed: z.literal(false),
+    verdict: z.literal("reject"),
+    summary: z.string(),
+    risks: z.array(z.string()),
+    auditedBy: z.string(),
+    note: z.string(),
+  }),
+  z.object({
+    slug: z.string(),
+    listed: z.literal(true),
+    url: z.string(),
+    audit: z.object({
+      verdict: z.enum(["approve", "caution", "reject"]),
+      summary: z.string(),
+      risks: z.array(z.string()),
+      model: z.string(),
+    }),
+    capabilities: z.array(z.string()),
+    priceUsd: z.string(),
+    scriptSha256: z.string(),
+    connectTwitter: z
+      .object({ status: z.enum(["verified", "unclaimed"]) })
+      .passthrough(),
+    note: z.string(),
+  }),
+]);
 
 router
   .route({ path: "register", method: "POST" })
   .paid(REGISTER_PRICE)
   .body(registerBody)
-  .inputExample({
-    slug: "neon-nights",
-    name: "Neon Nights",
-    description: "Synthwave banner with cost tracking.",
-    priceUsd: "0.10",
-    tags: ["powerline", "synthwave"],
-    script: "#!/usr/bin/env bash\nIN=$(cat)\n# ... your statusline ...",
-    previewAnsi: "Neon Nights ~/proj $1.42",
+  .inputExample(registerExample)
+  .output(registerOutputSchema)
+  .outputExample({
+    slug: registerExample.slug,
+    listed: true,
+    url: `https://claudelines.com/statuslines/${registerExample.slug}`,
+    audit: {
+      verdict: "approve",
+      summary: "The script prints a static status line.",
+      risks: [],
+      model: "claude-sonnet-4-5",
+    },
+    capabilities: [],
+    priceUsd: "0",
+    scriptSha256:
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    connectTwitter: { status: "unclaimed" },
+    note: "The listing is live.",
   })
   .description(
-    `Publish a Claude Code statusline for a flat $${REGISTER_PRICE}. Upload your script as-is in \`script\` with a captured \`previewAnsi\`. The fee funds an LLM security audit at registration; scripts that fail are not listed (the fee bought the audit). Set priceUsd ("0" = free, or any amount) to sell — buyers pay the wallet you registered from, directly. Connect an X identity (identity/connect returns a sign-in URL) to display @handle as author; otherwise unclaimed.`,
+    `Publish and audit a Claude Code status line for $${REGISTER_PRICE}. Submit the script, captured preview, listing metadata, and price. Rejected scripts are not listed and the audit fee is not refunded. Paid downloads settle directly to the publishing wallet with no platform fee.`,
   )
   .validate(async (body) => {
     if (!auditAvailable()) {
@@ -595,6 +699,23 @@ const AUDIT_PRICE_FIRST = REGISTER_PRICE;
  *  uneconomical while keeping legitimate refresh audits available. */
 const AUDIT_PRICE_REAUDIT = "0.30";
 
+const auditBody = z
+  .object({
+    slug: z.string().regex(SLUG).meta({ example: "agentcash-banner" }),
+  })
+  .meta({ example: { slug: "agentcash-banner" } });
+
+const auditOutputSchema = z.object({
+  slug: z.string(),
+  verdict: z.enum(["approve", "caution", "reject"]),
+  summary: z.string(),
+  risks: z.array(z.string()),
+  auditedBy: z.string(),
+  fundedBy: z.string(),
+  delisted: z.boolean(),
+  note: z.string(),
+});
+
 router
   .route({ path: "audit", method: "POST" })
   .paid(
@@ -605,10 +726,21 @@ router
     },
     { maxPrice: "1" },
   )
-  .body(z.object({ slug: z.string().regex(SLUG) }))
-  .inputExample({ slug: "neon-nights" })
+  .body(auditBody)
+  .inputExample({ slug: "agentcash-banner" })
+  .output(auditOutputSchema)
+  .outputExample({
+    slug: "agentcash-banner",
+    verdict: "caution",
+    summary: "The script reads local data and invokes an external CLI.",
+    risks: ["Review external command usage before installing."],
+    auditedBy: "claude-sonnet-4-5",
+    fundedBy: "0x0000000000000000000000000000000000000000",
+    delisted: false,
+    note: "Audit results are now shown on the listing.",
+  })
   .description(
-    `Fund an LLM security audit of an existing listing. $${AUDIT_PRICE_FIRST} for the first audit of an UNAUDITED listing (typically a wallet-less submission); $${AUDIT_PRICE_REAUDIT} to RE-audit a listing that already has a verdict (10x the audit's actual cost — deters verdict re-rolling; owners already got an audit with registration). The verdict, summary, and capabilities are stamped on the listing. An audit that REJECTS delists the script. The fee funds the audit and is not refunded regardless of verdict.`,
+    `Fund an LLM security audit of an existing listing. The first audit costs $${AUDIT_PRICE_FIRST}; a re-audit costs $${AUDIT_PRICE_REAUDIT}. Results are saved to the listing, and a rejected script is delisted. The audit fee is not refunded.`,
   )
   .validate(async (body: { slug?: string }) => {
     if (!auditAvailable()) {
