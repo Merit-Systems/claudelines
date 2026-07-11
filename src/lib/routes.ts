@@ -586,13 +586,29 @@ router
 
 // --- Crowd-funded audit (anyone can pay, on any listing) ----------------------
 
+/** First audit of an unaudited listing — the community-defense case. */
+const AUDIT_PRICE_FIRST = REGISTER_PRICE;
+/** Re-audit of an already-audited listing. ~10x the worst-case audit cost
+ *  (32 KB script through Sonnet ≈ $0.05 all-in): the owner's audit came
+ *  bundled with registration, so re-audit callers are re-rollers — pricing
+ *  at 10x margin makes verdict-fishing against a competitor uneconomical
+ *  while keeping legitimate refresh audits available. */
+const AUDIT_PRICE_REAUDIT = "0.50";
+
 router
   .route({ path: "audit", method: "POST" })
-  .paid(REGISTER_PRICE)
+  .paid(
+    async (body: { slug?: string }) => {
+      const row = body?.slug ? await getStatusline(body.slug) : null;
+      if (!row) throw new HttpError("Statusline not found", 404);
+      return row.auditVerdict ? AUDIT_PRICE_REAUDIT : AUDIT_PRICE_FIRST;
+    },
+    { maxPrice: "1" },
+  )
   .body(z.object({ slug: z.string().regex(SLUG) }))
   .inputExample({ slug: "neon-nights" })
   .description(
-    `Fund an LLM security audit of any existing listing for a flat $${REGISTER_PRICE} — typically an UNAUDITED unauthenticated submission, but re-auditing is allowed. The verdict, summary, and capabilities are stamped on the listing. An audit that REJECTS delists the script. The fee funds the audit and is not refunded regardless of verdict.`,
+    `Fund an LLM security audit of an existing listing. $${AUDIT_PRICE_FIRST} for the first audit of an UNAUDITED listing (typically a wallet-less submission); $${AUDIT_PRICE_REAUDIT} to RE-audit a listing that already has a verdict (~10x the worst-case audit cost — deters verdict re-rolling; owners already got an audit with registration). The verdict, summary, and capabilities are stamped on the listing. An audit that REJECTS delists the script. The fee funds the audit and is not refunded regardless of verdict.`,
   )
   .validate(async (body: { slug?: string }) => {
     if (!auditAvailable()) {

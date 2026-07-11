@@ -134,8 +134,11 @@ chmod +x ~/.claude/statuslines/$slug`}
           deterministic scanner — high severity hits are rejected, everything
           else is listed <span className="text-foreground">unaudited</span>{" "}
           with a prominent warning. Anyone can later fund the full LLM audit
-          for $0.15 through POST /api/audit; the verdict is stamped on the
-          listing, and an audit that rejects delists the script.
+          through POST /api/audit: $0.15 for the first audit of an unaudited
+          listing, $0.50 to re-audit one that already has a verdict (priced
+          well above audit cost to deter verdict re-rolling). The verdict is
+          stamped on the listing, and an audit that rejects delists the
+          script.
         </p>
         <p className="text-sm font-medium leading-6">
           These checks do not prove that a script is safe. Read the script
@@ -220,7 +223,7 @@ chmod +x ~/.claude/statuslines/$slug`}
                 [
                   "POST",
                   "/api/audit",
-                  "Fund an audit of any listing ($0.15, anyone)",
+                  "Fund an audit: $0.15 first, $0.50 re-audit",
                 ],
                 [
                   "POST",
