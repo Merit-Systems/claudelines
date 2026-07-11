@@ -71,7 +71,7 @@ export default async function CreatorPage({ params }: Props) {
               priceUsd={row.priceUsd}
               base={base}
             >
-              <ListingPreview previewAnsi={row.previewAnsi} />
+              <ListingPreview previewAnsi={row.previewAnsi} previewFrames={row.previewFrames} />
             </StatuslineEntry>
           </li>
         ))}

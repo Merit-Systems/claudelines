@@ -79,7 +79,7 @@ export default async function StatuslinePage({ params }: Props) {
         </div>
       </div>
 
-      <TerminalPreview previewAnsi={row.previewAnsi} />
+      <TerminalPreview previewAnsi={row.previewAnsi} previewFrames={row.previewFrames} />
 
       {row.auditSummary && (
         <div className="flex flex-col gap-2 rounded-xl border p-4">
@@ -135,7 +135,7 @@ export default async function StatuslinePage({ params }: Props) {
         priceUsd={row.priceUsd}
         base={siteUrl()}
       >
-        <ListingPreview previewAnsi={row.previewAnsi} />
+        <ListingPreview previewAnsi={row.previewAnsi} previewFrames={row.previewFrames} />
       </StatuslineEntry>
 
       {free && row.script && (

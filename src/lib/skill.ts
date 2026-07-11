@@ -58,7 +58,12 @@ rejects. Follow these steps exactly:
 
 1. **Locate** — read \`statusLine.command\` from \`~/.claude/settings.json\` and
    publish that script as-is. Do not browse for or install a different one.
-2. **Capture a preview** — \`echo '{}' | COLUMNS=120 <command> > preview.ansi\`
+2. **Capture a preview** — \`echo '{}' | COLUMNS=120 <command> > preview.ansi\`.
+   Animated statuslines can also ship \`previewFrames\` (played on the site at
+   1 fps): capture the same command once per second —
+   \`for i in $(seq 0 19); do echo '{}' | COLUMNS=120 <command>; printf '\\0'; sleep 1; done > frames.raw\`
+   then \`jq -Rs 'split("\\u0000") | map(select(length>0))' frames.raw > frames.json\`
+   (2–30 frames, ≤8 KB each, 64 KB total; frame 0 doubles as the still).
 3. **Sanitize** — the capture runs the real script, so it can embed live
    personal data (wallet addresses, balances, home paths, emails). Inspect it
    (\`cat -v preview.ansi\`); if anything leaks, re-capture against mocked data
@@ -77,9 +82,10 @@ npx agentcash@latest fetch ${base}/api/register -m POST \\
 \`\`\`
 
 Fields: \`slug\` lowercase-kebab, ≤48 chars · \`name\` ≤48 · \`description\` ≤280 ·
-\`tags\` ≤5 × ≤24 · \`script\` ≤32 KB · \`previewAnsi\` ≤8 KB · \`priceUsd\` decimal
-string ("0" = free; otherwise buyers pay the registering wallet directly — that
-wallet is the account and payout target).
+\`tags\` ≤5 × ≤24 · \`script\` ≤32 KB · \`previewAnsi\` ≤8 KB · \`previewFrames\`
+optional 2–30 × ≤8 KB (64 KB total) · \`priceUsd\` decimal string ("0" = free;
+otherwise buyers pay the registering wallet directly — that wallet is the
+account and payout target).
 
 Outcomes:
 
@@ -93,6 +99,15 @@ Outcomes:
 X account — \`POST ${base}/api/identity/connect\` (SIWX-signed, free, no body)
 returns an \`authorizeUrl\`. Give it to the user to open in a browser; signing
 in with X stamps their @handle on all the wallet's listings. Nothing else to call.
+
+## Update a preview
+
+The publishing wallet can replace a preview without republishing or rerunning
+the audit. Capture and sanitize the new output, then make a free SIWX-signed
+\`POST ${base}/api/statuslines/{slug}/preview\` with \`{"previewAnsi":"..."}\`,
+\`{"previewFrames":["...", ...]}\` (1 fps animation, 2–30 frames — frame 0
+becomes the still), or both. This changes only the inert preview stored by
+the site.
 
 ## Feedback
 

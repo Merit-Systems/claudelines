@@ -32,6 +32,7 @@ import {
   getFeedback,
   recordInstall,
   setHidden,
+  updateStatuslinePreview,
   upsertReview,
   slugTaken,
   type SortKey,
@@ -55,6 +56,18 @@ const printable = (max: number) =>
 const priceString = z
   .string()
   .regex(/^\d{1,9}(\.\d{1,6})?$/, 'Decimal USD string, e.g. "0.05"');
+
+const previewAnsiSchema = z.string().min(1).max(8_192);
+
+/** Optional 1 fps animation: successive captures of the same statusline.
+ *  Inert text like previewAnsi — the site plays it client-side, never executes. */
+const previewFramesSchema = z
+  .array(previewAnsiSchema)
+  .min(2)
+  .max(30)
+  .refine((frames) => frames.reduce((n, f) => n + f.length, 0) <= 65_536, {
+    message: "Frames exceed 64 KB total",
+  });
 
 /** Integrity hash surfaced everywhere the script is. Lets installers verify
  *  the saved bytes and fail loudly on transfer corruption (e.g. a script
@@ -88,6 +101,7 @@ function publicEntry(row: StatuslineWithAuthor, includePayload: boolean) {
     installs: row.installs,
     createdAt: row.createdAt.toISOString(),
     previewAnsi: row.previewAnsi ?? undefined,
+    previewFrames: row.previewFrames ?? undefined,
     // Published for every listing (it reveals nothing about paid sources):
     // installers verify their saved file against it after download.
     scriptSha256: row.script ? sha256Hex(row.script) : undefined,
@@ -209,6 +223,50 @@ router
   });
 
 router
+  .route({ path: "statuslines/{slug}/preview", method: "POST" })
+  .siwx()
+  .body(
+    z
+      .object({
+        previewAnsi: previewAnsiSchema.optional(),
+        previewFrames: previewFramesSchema.optional(),
+      })
+      .refine((b) => b.previewAnsi || b.previewFrames, {
+        message: "Provide previewAnsi, previewFrames, or both",
+      }),
+  )
+  .inputExample({ previewAnsi: "Neon Nights ~/project $1.42" })
+  .description(
+    "Replace a listing's captured ANSI preview and/or its 1 fps animation frames (successive captures, ≤30 × ≤8 KB, 64 KB total). Free and restricted to the wallet that published the listing. This does not change or rerun the script.",
+  )
+  .handler(async ({ params, body, wallet }) => {
+    if (!wallet) throw new HttpError("Wallet identity required", 401);
+
+    const row = await getStatusline(params.slug);
+    if (!row) throw new HttpError("Statusline not found", 404);
+    if (
+      !row.authorWallet ||
+      row.authorWallet.toLowerCase() !== wallet.toLowerCase()
+    ) {
+      throw new HttpError("Only the listing owner can update its preview", 403);
+    }
+
+    // Partial update: only the provided fields change. Frames without a
+    // still also refresh the still from frame 0 so the two stay consistent.
+    const previewAnsi = body.previewAnsi ?? body.previewFrames?.[0];
+    await updateStatuslinePreview(row.slug, {
+      previewAnsi,
+      previewFrames: body.previewFrames,
+    });
+    return {
+      updated: true,
+      slug: row.slug,
+      previewAnsi,
+      previewFrames: body.previewFrames ?? undefined,
+    };
+  });
+
+router
   .route({ path: "leaderboard", method: "GET" })
   .unprotected()
   .description("Top statuslines ranked by installs, with revenue.")
@@ -304,7 +362,9 @@ const registerBody = z.object({
     .max(32_768)
     .refine((v) => !v.includes("\u0000"), { message: "Binary not allowed" }),
   /** Captured sample output for the preview (echo '{}' | COLUMNS=120 <script>). */
-  previewAnsi: z.string().min(1).max(8_192),
+  previewAnsi: previewAnsiSchema,
+  /** Optional 1 fps animation: the same capture repeated on successive seconds. */
+  previewFrames: previewFramesSchema.optional(),
   priceUsd: priceString.default("0"),
   tags: z
     .array(printable(24).refine((v) => v.length >= 1, "Empty tag"))
@@ -387,6 +447,7 @@ router
       priceUsd: Number(body.priceUsd) === 0 ? "0" : body.priceUsd,
       script: body.script,
       previewAnsi: body.previewAnsi,
+      previewFrames: body.previewFrames ?? null,
       capabilities: audit.capabilities.length
         ? audit.capabilities
         : detectCapabilities(body.script),

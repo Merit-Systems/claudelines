@@ -25,6 +25,7 @@ export const router = createRouterFromEnv({
     "Browse:   GET /api/statuslines?q=&sort=installs|newest|revenue",
     "Detail:   GET /api/statuslines/{slug} — includes the script + install steps when free.",
     "Script:   GET /api/statuslines/{slug}/script — raw source, text/plain.",
+    "Preview:  POST /api/statuslines/{slug}/preview with {\"previewAnsi\": \"...\"} (SIWX, free) to replace your listing's captured preview.",
     "Ranks:    GET /api/leaderboard",
     "Buy:      POST /api/download with {\"slug\": \"...\"} — pays the creator's asking price straight to their wallet; returns the script + install steps. Review before installing.",
     "Publish:  POST /api/register ($0.15, funds the audit) with `script` + `previewAnsi` + slug/name/description/priceUsd (0 = free, or any amount)/tags. A failed audit is not listed (fee bought the audit). Proceeds pay the registering wallet. Connect an X identity to show @handle as author: POST /api/identity/connect (SIWX, free) returns an authorizeUrl — the user opens it in a browser and signs in with X; done.",

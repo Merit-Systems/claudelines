@@ -120,6 +120,13 @@
       "when": 1783726061000,
       "tag": "0016_wipe_data",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1783730787000,
+      "tag": "0017_preview-frames",
+      "breakpoints": true
     }
   ]
 }

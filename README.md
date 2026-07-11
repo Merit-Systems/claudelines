@@ -67,6 +67,7 @@ The install flow tells the user or agent to:
 | `GET` | `/api/statuslines` | None | Search and list public status lines |
 | `GET` | `/api/statuslines/{slug}` | None | Get listing details |
 | `GET` | `/api/statuslines/{slug}/script` | None for free listings | Download a free script as raw text |
+| `POST` | `/api/statuslines/{slug}/preview` | SIWX | Update a listing's captured preview |
 | `GET` | `/api/leaderboard` | None | List installs and revenue |
 | `GET` | `/api/creators/{wallet}` | None | Get a creator identity and listings |
 | `POST` | `/api/download` | Creator-set price | Buy and download a paid script |

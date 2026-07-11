@@ -110,6 +110,7 @@ export async function createStatusline(input: {
   priceUsd: string;
   script: string;
   previewAnsi: string | null;
+  previewFrames: string[] | null;
   capabilities: string[];
   auditVerdict: string | null;
   auditSummary: string | null;
@@ -129,6 +130,7 @@ export async function createStatusline(input: {
       kind: "script",
       script: input.script,
       previewAnsi: input.previewAnsi,
+      previewFrames: input.previewFrames,
       capabilities: input.capabilities,
       auditVerdict: input.auditVerdict,
       auditSummary: input.auditSummary,
@@ -193,6 +195,19 @@ export async function recordInstall(
 
 export async function slugTaken(slug: string): Promise<boolean> {
   return (await getStatusline(slug)) !== null;
+}
+
+/** Replace the inert preview (still and/or 1 fps frames) shown for a listing.
+ *  Only provided fields change. Ownership is checked by the route. */
+export async function updateStatuslinePreview(
+  slug: string,
+  patch: { previewAnsi?: string; previewFrames?: string[] },
+): Promise<void> {
+  const set: Partial<typeof statuslines.$inferInsert> = {};
+  if (patch.previewAnsi !== undefined) set.previewAnsi = patch.previewAnsi;
+  if (patch.previewFrames !== undefined) set.previewFrames = patch.previewFrames;
+  if (!Object.keys(set).length) return;
+  await db().update(statuslines).set(set).where(eq(statuslines.slug, slug));
 }
 
 /** Counts every settled sale (incl. self-buys) — drives the fee rotation. */

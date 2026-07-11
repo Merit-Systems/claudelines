@@ -193,6 +193,11 @@ chmod +x ~/.claude/statuslines/$slug`}
                 ],
                 ["POST", "/api/download", "Buy and download a paid script"],
                 ["POST", "/api/register", "Audit and publish a script"],
+                [
+                  "POST",
+                  "/api/statuslines/{slug}/preview",
+                  "Update an owned listing preview",
+                ],
                 ["GET", "/api/leaderboard", "List installs and revenue"],
                 ["POST", "/api/report", "Submit signed feedback or a report"],
               ].map(([method, path, purpose]) => (

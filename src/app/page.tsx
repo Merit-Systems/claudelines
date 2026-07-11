@@ -108,7 +108,7 @@ export default async function HomePage({
                   priceUsd={row.priceUsd}
                   base={base}
                 >
-                  <ListingPreview previewAnsi={row.previewAnsi} />
+                  <ListingPreview previewAnsi={row.previewAnsi} previewFrames={row.previewFrames} />
                 </StatuslineEntry>
               </li>
             ))}

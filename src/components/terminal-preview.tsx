@@ -1,11 +1,16 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 import { parseAnsi, type StyledRun } from "@/lib/statusline/ansi";
 import { ClaudeCodeMark } from "@/components/claude-code-mark";
 import { cn } from "@/lib/utils";
 
 /**
  * Terminal-emulator preview. Renders a captured ANSI sample (the previewAnsi
- * every listing ships) as inert styled text — nothing executes. Powerline
- * arrows and colors come straight from the captured escapes.
+ * every listing ships) as inert styled text — nothing executes. Listings that
+ * ship previewFrames play them client-side at 1 fps (the statusline's own
+ * refresh cadence): a flipbook of parsed text, still nothing executing.
  */
 
 const DEFAULT_FG = "var(--term-fg)";
@@ -85,22 +90,40 @@ function Run({ run }: { run: StyledRun }) {
   );
 }
 
-/** Bare statusline preview from a captured ANSI sample. */
+/** Bare statusline preview from a captured ANSI sample; animates at 1 fps
+ *  when the listing ships previewFrames (unless the viewer prefers reduced
+ *  motion, which pins the first frame). */
 export function ListingPreview({
   previewAnsi,
+  previewFrames,
   className,
 }: {
   previewAnsi?: string | null;
+  previewFrames?: string[] | null;
   className?: string;
 }) {
-  if (!previewAnsi) {
+  const frames =
+    previewFrames && previewFrames.length > 1 ? previewFrames : null;
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    if (!frames) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(
+      () => setFrame((i) => (i + 1) % frames.length),
+      1000,
+    );
+    return () => clearInterval(id);
+  }, [frames]);
+
+  const source = frames ? frames[frame % frames.length] : previewAnsi;
+  if (!source) {
     return (
       <div className={cn("font-mono text-[13px] opacity-50", className)}>
         (no preview)
       </div>
     );
   }
-  const lines = parseAnsi(previewAnsi);
+  const lines = parseAnsi(source);
   // Multi-line art must stack flush — box-drawing characters are designed to
   // touch across rows. Single lines keep the taller row for presence.
   const rowHeight = lines.length > 1 ? "h-[1em] leading-none" : "h-[1.9em]";
@@ -158,9 +181,11 @@ export function CcFrame({ children }: { children: React.ReactNode }) {
 /** Full emulator frame with the statusline where Claude Code renders it. */
 export function TerminalPreview({
   previewAnsi,
+  previewFrames,
   className,
 }: {
   previewAnsi?: string | null;
+  previewFrames?: string[] | null;
   className?: string;
 }) {
   return (
@@ -173,7 +198,7 @@ export function TerminalPreview({
       }}
     >
       <CcFrame>
-        <ListingPreview previewAnsi={previewAnsi} />
+        <ListingPreview previewAnsi={previewAnsi} previewFrames={previewFrames} />
       </CcFrame>
     </div>
   );

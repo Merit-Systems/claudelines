@@ -33,6 +33,9 @@ export const statuslines = pgTable("statuslines", {
   script: text("script"),
   /** Captured sample output (ANSI allowed) used for previews of scripts. */
   previewAnsi: text("preview_ansi"),
+  /** Optional captured animation frames the site plays at 1 fps. Inert text
+   *  like previewAnsi — never executed, replaceable without a re-audit. */
+  previewFrames: text("preview_frames").array(),
   /** Heuristically detected capabilities: network, exec, fs-write, env. */
   capabilities: text("capabilities").array().notNull().default([]),
   /** LLM audit at registration (kind = "script"): approve | caution. */
