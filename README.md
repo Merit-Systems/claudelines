@@ -40,6 +40,14 @@ The wallet that pays for registration owns the listing and receives payments
 for paid downloads. A publisher can connect an X account to that wallet through
 SIWX and OAuth.
 
+Publishing without a wallet is free through `POST /api/submit`. These listings
+skip the LLM audit (only the deterministic scanner runs, and high severity
+hits are rejected), have no owner, and can never be sold. They are marked
+unaudited with a prominent warning until someone funds the audit. Anyone —
+not just the publisher — can pay $0.15 through `POST /api/audit` to run the
+full LLM review on any listing; an audit that rejects delists the script.
+Free submissions are rate-limited per caller.
+
 ### Installing
 
 Free scripts are served as raw text. Paid scripts are returned after payment.
@@ -54,7 +62,9 @@ The install flow tells the user or agent to:
 ### Payments
 
 - Free downloads require no payment.
-- Publishing costs $0.15 and funds the audit.
+- Publishing costs $0.15 and funds the audit; wallet-less publishing is free
+  and unaudited.
+- Anyone can fund a $0.15 audit of any listing.
 - Publishers choose the price of paid scripts.
 - Paid downloads settle directly to the publisher's wallet.
 - ClaudeLines takes no platform fee and does not hold creator payments.
@@ -72,6 +82,8 @@ The install flow tells the user or agent to:
 | `GET` | `/api/creators/{wallet}` | None | Get a creator identity and listings |
 | `POST` | `/api/download` | Creator-set price | Buy and download a paid script |
 | `POST` | `/api/register` | $0.15 | Audit and publish a script |
+| `POST` | `/api/submit` | None | Publish free without a wallet (unaudited) |
+| `POST` | `/api/audit` | $0.15 | Fund an LLM audit of any listing |
 | `POST` | `/api/identity/connect` | SIWX | Start X account verification |
 | `POST` | `/api/report` | SIWX | Submit a review or report |
 | `GET` | `/api/statuslines/{slug}/feedback` | None | Get reviews and reports |

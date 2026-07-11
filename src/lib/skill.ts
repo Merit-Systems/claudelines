@@ -6,7 +6,7 @@ export function skillMd() {
   const base = siteUrl();
   return `---
 name: claudelines
-description: Browse, install, publish, and sell Claude Code statuslines via ${base}. Use when the user wants a new statusline, wants to share or sell their current statusline, wants to claim their listings or connect their X handle, asks about the bar at the bottom of Claude Code, or mentions claudelines.com.
+description: Browse, install, publish, and sell Claude Code statuslines via ${base}. Publishing works with or without a wallet (wallet-less is free but unaudited). Use when the user wants a new statusline, wants to share or sell their current statusline, wants to audit a listing, wants to claim their listings or connect their X handle, asks about the bar at the bottom of Claude Code, or mentions claudelines.com.
 ---
 
 # ClaudeLines — Claude Code statusline registry

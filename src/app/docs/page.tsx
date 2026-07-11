@@ -107,6 +107,10 @@ chmod +x ~/.claude/statuslines/$slug`}
 
       <section className={sectionClass} id="checks">
         <h2 className="text-lg font-medium">Checks on submitted scripts</h2>
+        <p className={textClass}>
+          Paid registrations ($0.15 through POST /api/register) get the full
+          pipeline:
+        </p>
         <ol className={`${textClass} list-decimal space-y-2 pl-5`}>
           <li>The registration payment is verified.</li>
           <li>An LLM reviews the submitted script.</li>
@@ -125,9 +129,17 @@ chmod +x ~/.claude/statuslines/$slug`}
           A rejected submission is not listed. The registration payment is not
           refunded because the audit has already run.
         </p>
+        <p className={textClass}>
+          Free submissions (POST /api/submit, no wallet) get only the
+          deterministic scanner — high severity hits are rejected, everything
+          else is listed <span className="text-foreground">unaudited</span>{" "}
+          with a prominent warning. Anyone can later fund the full LLM audit
+          for $0.15 through POST /api/audit; the verdict is stamped on the
+          listing, and an audit that rejects delists the script.
+        </p>
         <p className="text-sm font-medium leading-6">
           These checks do not prove that a script is safe. Read the script
-          before running it.
+          before running it — especially an unaudited one.
         </p>
       </section>
 
@@ -144,6 +156,13 @@ chmod +x ~/.claude/statuslines/$slug`}
           The wallet that pays for registration becomes the listing owner. A
           verified X handle can be attached to that wallet through the identity
           endpoints.
+        </p>
+        <p className={textClass}>
+          No wallet? POST /api/submit publishes for free with the same fields
+          minus the price. The listing has no owner — authorship can&apos;t be
+          claimed, the preview can&apos;t be updated, and it can never be
+          sold — and it carries an unaudited warning until someone funds its
+          audit. Free submissions are rate-limited per caller.
         </p>
         <CopyBlock
           label="Ask Claude Code to publish the configured status line"
@@ -192,7 +211,17 @@ chmod +x ~/.claude/statuslines/$slug`}
                   "Download a free script",
                 ],
                 ["POST", "/api/download", "Buy and download a paid script"],
-                ["POST", "/api/register", "Audit and publish a script"],
+                ["POST", "/api/register", "Audit and publish a script ($0.15)"],
+                [
+                  "POST",
+                  "/api/submit",
+                  "Publish free without a wallet (unaudited)",
+                ],
+                [
+                  "POST",
+                  "/api/audit",
+                  "Fund an audit of any listing ($0.15, anyone)",
+                ],
                 [
                   "POST",
                   "/api/statuslines/{slug}/preview",
