@@ -23,8 +23,8 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const row = await getStatusline(slug);
-  if (!row) return { title: "Not found" };
-  return { title: row.name, description: row.description };
+  if (!row) return {};
+  return { description: row.description };
 }
 
 export default async function StatuslinePage({ params }: Props) {

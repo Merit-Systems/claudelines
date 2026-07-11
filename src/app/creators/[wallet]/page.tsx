@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { StatuslineEntry } from "@/components/add-to-claude";
@@ -14,11 +13,6 @@ export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ wallet: string }>;
-}
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { wallet } = await params;
-  return { title: `Creator ${shortWallet(wallet)}` };
 }
 
 export default async function CreatorPage({ params }: Props) {

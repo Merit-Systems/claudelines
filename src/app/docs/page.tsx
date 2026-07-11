@@ -4,7 +4,6 @@ import { CopyBlock } from "@/components/copy-block";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Docs",
   description: "How ClaudeLines stores, checks, installs, and sells Claude Code status lines.",
 };
 

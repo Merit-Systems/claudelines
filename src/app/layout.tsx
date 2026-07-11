@@ -20,12 +20,9 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
-  title: {
-    default: "ClaudeLines — Claude Code statusline registry",
-    template: "%s — ClaudeLines",
-  },
+  title: "ClaudeLines",
   description:
-    "A registry and leaderboard for Claude Code statuslines. Safe, data-only specs — install without running anyone's bash. Publish for $0.01, sell at your price.",
+    "Share, discover, and install audited Claude Code status line scripts.",
 };
 
 export default function RootLayout({

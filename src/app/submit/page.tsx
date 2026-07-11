@@ -4,7 +4,6 @@ import { GatePanel } from "@/components/gate-panel";
 import { siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Submit",
   description: "Publish a statusline to the registry.",
 };
 
