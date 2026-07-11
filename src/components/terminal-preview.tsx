@@ -156,6 +156,32 @@ export function ListingPreview({
     return () => ro.disconnect();
   });
 
+  // Multi-line rows must be exactly one glyph-cell tall: box-drawing and
+  // block characters (▓ █ ░ ╭) are drawn to the font's full cell — taller
+  // than 1em — so a guessed row height either overlaps rows (too short) or
+  // splits them with gaps (too tall). Measure the real ink height of █ in
+  // the computed font and size rows to precisely that.
+  const [cellH, setCellH] = useState<number | null>(null);
+  useEffect(() => {
+    const measureCell = () => {
+      const el = innerRef.current;
+      if (!el) return;
+      const cs = getComputedStyle(el);
+      const ctx = document.createElement("canvas").getContext("2d");
+      if (!ctx) return;
+      ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const m = ctx.measureText("█");
+      const h =
+        Math.round(
+          ((m.actualBoundingBoxAscent ?? 0) + (m.actualBoundingBoxDescent ?? 0)) * 10,
+        ) / 10;
+      if (h > 0) setCellH((prev) => (prev === h ? prev : h));
+    };
+    measureCell();
+    // Re-measure after webfonts land — fallback-font metrics differ.
+    document.fonts?.ready?.then(measureCell).catch(() => {});
+  }, []);
+
   const source = frames ? frames[frame % frames.length] : previewAnsi;
   if (!source) {
     return (
@@ -165,9 +191,12 @@ export function ListingPreview({
     );
   }
   const lines = parseAnsi(source);
-  // Multi-line art must stack flush — box-drawing characters are designed to
-  // touch across rows. Single lines keep the taller row for presence.
-  const rowHeight = lines.length > 1 ? "h-[1em] leading-none" : "h-[1.9em]";
+  const multiline = lines.length > 1;
+  const rowStyle: React.CSSProperties | undefined = multiline
+    ? cellH
+      ? { height: `${cellH}px`, lineHeight: `${cellH}px` }
+      : { height: "1.2em", lineHeight: "1.2em" } // pre-measure approximation
+    : undefined;
   return (
     <div
       ref={containerRef}
@@ -184,8 +213,9 @@ export function ListingPreview({
               key={li}
               className={cn(
                 "flex w-max items-center font-mono text-[13px]",
-                rowHeight,
+                multiline ? undefined : "h-[1.9em]",
               )}
+              style={rowStyle}
             >
               {runs.map((run, i) => (
                 <Run key={i} run={run} />

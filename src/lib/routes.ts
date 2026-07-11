@@ -28,6 +28,7 @@ import {
   createStatusline,
   getStatusline,
   listByWallet,
+  listUnaudited,
   listStatuslines,
   addReport,
   getFeedback,
@@ -909,6 +910,67 @@ router
   .handler(async ({ body }) => {
     await setHidden(body.slug, body.hidden);
     return { slug: body.slug, hidden: body.hidden };
+  });
+
+/** Run the standard audit + red-flag pipeline on one script, persist, hide on reject. */
+async function auditAndPersist(entry: {
+  slug: string;
+  script: string | null;
+  name: string;
+  description: string;
+}) {
+  if (!entry.script) return { slug: entry.slug, skipped: "no script" };
+  const audit = await auditScript({
+    script: entry.script,
+    name: entry.name,
+    description: entry.description,
+    author: "backfill",
+  });
+  const flags = scanRedFlags(entry.script);
+  if (audit.verdict === "approve" && hasHighSeverity(flags)) {
+    audit.verdict = "reject";
+    audit.risks = [
+      ...audit.risks,
+      ...flags.filter((f) => f.severity === "high").map((f) => f.label),
+    ];
+  } else if (audit.verdict === "approve" && flags.length > 0) {
+    audit.verdict = "caution";
+  }
+  await updateStatuslineAudit(entry.slug, {
+    auditVerdict: audit.verdict,
+    auditSummary: audit.summary,
+    auditModel: audit.model,
+    capabilities: audit.capabilities.length
+      ? audit.capabilities
+      : detectCapabilities(entry.script),
+    redFlags: flags.map((f) => `${f.severity}: ${f.label}`),
+  });
+  if (audit.verdict === "reject") await setHidden(entry.slug, true);
+  return {
+    slug: entry.slug,
+    verdict: audit.verdict,
+    model: audit.model,
+    hidden: audit.verdict === "reject",
+  };
+}
+
+router
+  .route({ path: "admin/reaudit", method: "POST" })
+  .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
+  .body(z.object({ slug: z.string().regex(SLUG).optional() }))
+  .description(
+    "Admin: run the security audit on a slug, or on every never-audited listing when no slug is given. Persists verdict/summary/capabilities and auto-hides rejects. Requires ADMIN_TOKEN.",
+  )
+  .handler(async ({ body }) => {
+    if (body.slug) {
+      const row = await getStatusline(body.slug);
+      if (!row) throw new HttpError("Statusline not found", 404);
+      return { results: [await auditAndPersist(row)] };
+    }
+    const pending = await listUnaudited();
+    const results = [];
+    for (const entry of pending) results.push(await auditAndPersist(entry));
+    return { audited: results.length, results };
   });
 
 // --- Misc --------------------------------------------------------------------

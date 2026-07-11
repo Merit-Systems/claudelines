@@ -6,6 +6,7 @@ import {
   getTableColumns,
   gt,
   ilike,
+  isNull,
   or,
   sql,
 } from "drizzle-orm";
@@ -355,4 +356,20 @@ export async function setHidden(slug: string, hidden: boolean): Promise<void> {
     .update(statuslines)
     .set({ hidden })
     .where(eq(statuslines.slug, slug));
+}
+
+/** Slugs (+scripts) that never got an LLM audit — for backfill re-audits. */
+export async function listUnaudited(): Promise<
+  { slug: string; script: string | null; name: string; description: string }[]
+> {
+  const rows = await db()
+    .select({
+      slug: statuslines.slug,
+      script: statuslines.script,
+      name: statuslines.name,
+      description: statuslines.description,
+    })
+    .from(statuslines)
+    .where(isNull(statuslines.auditVerdict));
+  return rows;
 }
