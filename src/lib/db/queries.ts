@@ -17,6 +17,7 @@ import {
   feedback,
   identities,
   statuslines,
+  type CompanionFile,
   type StatuslineRow,
 } from "./index";
 
@@ -112,6 +113,8 @@ export async function createStatusline(input: {
   script: string;
   previewAnsi: string | null;
   previewFrames: string[] | null;
+  /** Companion command files, already audited alongside the script. */
+  files?: CompanionFile[] | null;
   capabilities: string[];
   auditVerdict: string | null;
   auditSummary: string | null;
@@ -134,6 +137,7 @@ export async function createStatusline(input: {
       script: input.script,
       previewAnsi: input.previewAnsi,
       previewFrames: input.previewFrames,
+      files: input.files ?? null,
       capabilities: input.capabilities,
       auditVerdict: input.auditVerdict,
       auditSummary: input.auditSummary,
@@ -169,6 +173,40 @@ export async function countRecentRegistersByIp(ipHash: string): Promise<number> 
       ),
     );
   return rows.length;
+}
+
+/** Owner script update: replace the audited artifact set (script + companion
+ *  files) and the audit results that vouch for it, atomically. Preview fields
+ *  change only when provided. Everything else — slug, price, installs, sales,
+ *  revenue, feedback, createdAt — is deliberately untouched. Ownership is
+ *  checked by the route. */
+export async function updateStatuslineScript(
+  slug: string,
+  patch: {
+    script: string;
+    /** null clears — files must always match the just-audited submission. */
+    files: CompanionFile[] | null;
+    capabilities: string[];
+    auditVerdict: string;
+    auditSummary: string;
+    auditModel: string;
+    redFlags: string[];
+    previewAnsi?: string;
+    previewFrames?: string[];
+  },
+): Promise<void> {
+  const set: Partial<typeof statuslines.$inferInsert> = {
+    script: patch.script,
+    files: patch.files,
+    capabilities: patch.capabilities,
+    auditVerdict: patch.auditVerdict,
+    auditSummary: patch.auditSummary,
+    auditModel: patch.auditModel,
+    redFlags: patch.redFlags,
+  };
+  if (patch.previewAnsi !== undefined) set.previewAnsi = patch.previewAnsi;
+  if (patch.previewFrames !== undefined) set.previewFrames = patch.previewFrames;
+  await db().update(statuslines).set(set).where(eq(statuslines.slug, slug));
 }
 
 /** Stamp (or refresh) audit results on an existing listing. */
@@ -370,7 +408,13 @@ export async function setHidden(slug: string, hidden: boolean): Promise<void> {
 
 /** Slugs (+scripts) that never got an LLM audit — for backfill re-audits. */
 export async function listUnaudited(): Promise<
-  { slug: string; script: string | null; name: string; description: string }[]
+  {
+    slug: string;
+    script: string | null;
+    name: string;
+    description: string;
+    files: CompanionFile[] | null;
+  }[]
 > {
   const rows = await db()
     .select({
@@ -378,6 +422,7 @@ export async function listUnaudited(): Promise<
       script: statuslines.script,
       name: statuslines.name,
       description: statuslines.description,
+      files: statuslines.files,
     })
     .from(statuslines)
     .where(isNull(statuslines.auditVerdict));

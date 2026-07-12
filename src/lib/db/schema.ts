@@ -9,6 +9,11 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+/** A companion Claude Code slash-command file shipped with a listing —
+ *  installed to ~/.claude/commands/, so it is a PROMPT the user's agent
+ *  executes with full tool access. Treat the content as code, not data. */
+export type CompanionFile = { path: string; content: string };
+
 export const statuslines = pgTable("statuslines", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: text("slug").notNull().unique(),
@@ -36,6 +41,11 @@ export const statuslines = pgTable("statuslines", {
   /** Optional captured animation frames the site plays at 1 fps. Inert text
    *  like previewAnsi — never executed, replaceable without a re-audit. */
   previewFrames: text("preview_frames").array(),
+  /** Optional companion command files (`commands/<name>.md`) shipped with the
+   *  script. NOT inert: each installs to ~/.claude/commands/ and is executed
+   *  by the user's agent as a prompt, so every content goes through the same
+   *  red-flag scan and LLM audit as the script itself. */
+  files: jsonb("files").$type<CompanionFile[]>(),
   /** Heuristically detected capabilities: network, exec, fs-write, env. */
   capabilities: text("capabilities").array().notNull().default([]),
   /** LLM audit at registration (kind = "script"): approve | caution. */
