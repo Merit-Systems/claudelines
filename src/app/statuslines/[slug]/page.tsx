@@ -192,6 +192,30 @@ export default async function StatuslinePage({ params }: Props) {
         </section>
       )}
 
+      {free && row.files && row.files.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-medium">
+            Companion command files — read them before you install them
+          </h2>
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            These are Claude Code slash-command files that install to
+            ~/.claude/commands/. Each one is a prompt your agent executes with
+            your full tool access — audited together with the script, but read
+            every file yourself before saving it.
+          </p>
+          {row.files.map((f) => (
+            <details key={f.path} className="rounded-lg border">
+              <summary className="text-muted-foreground hover:text-foreground cursor-pointer px-3 py-2 font-mono text-xs">
+                {f.path}
+              </summary>
+              <div className="border-t p-3">
+                <CopyBlock text={f.content} />
+              </div>
+            </details>
+          ))}
+        </section>
+      )}
+
       <Separator />
 
       <FeedbackSection

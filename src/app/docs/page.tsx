@@ -58,6 +58,12 @@ export default function DocsPage() {
         <ul className={`${textClass} list-disc space-y-2 pl-5`}>
           <li>The status line script.</li>
           <li>A captured ANSI preview supplied by the publisher.</li>
+          <li>
+            Optional companion Claude Code command files
+            (commands/&lt;name&gt;.md). These are prompts your agent executes,
+            so they are audited together with the script — read them before
+            installing to ~/.claude/commands/.
+          </li>
           <li>Name, description, tags, author wallet, and price.</li>
           <li>An audit summary, detected capabilities, and scanner flags.</li>
         </ul>
@@ -214,8 +220,18 @@ chmod +x ~/.claude/statuslines/$slug`}
                   "/api/statuslines/{slug}/script",
                   "Download a free script",
                 ],
+                [
+                  "GET",
+                  "/api/statuslines/{slug}/files",
+                  "Companion command files for a free listing",
+                ],
                 ["POST", "/api/download", "Buy and download a paid script"],
                 ["POST", "/api/register", "Audit and publish a script ($0.15)"],
+                [
+                  "POST",
+                  "/api/statuslines/{slug}/update",
+                  "Owner script update, re-audited ($0.15)",
+                ],
                 [
                   "POST",
                   "/api/submit",
