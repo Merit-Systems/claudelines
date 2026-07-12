@@ -19,7 +19,11 @@ import { HttpError } from "@agentcash/router";
 import { router } from "./router";
 import { siteUrl } from "./site";
 import { detectCapabilities } from "./statusline/capabilities";
-import { hasHighSeverity, scanRedFlags } from "./statusline/redflags";
+import {
+  hasHighSeverity,
+  scanRedFlags,
+  type RedFlag,
+} from "./statusline/redflags";
 import { auditAvailable, auditScript } from "./statusline/audit";
 import { getIdentity, oauthConfigured, startClaim } from "./identity";
 import {
@@ -37,12 +41,13 @@ import {
   setHidden,
   updateStatuslineAudit,
   updateStatuslinePreview,
+  updateStatuslineScript,
   upsertReview,
   slugTaken,
   type SortKey,
   type StatuslineWithAuthor,
 } from "./db/queries";
-import type { StatuslineRow } from "./db/schema";
+import type { CompanionFile, StatuslineRow } from "./db/schema";
 
 /** Flat submission fee; funds the LLM security audit that runs on every upload. */
 const REGISTER_PRICE = "0.15";
@@ -63,6 +68,47 @@ const priceString = z
 
 const previewAnsiSchema = z.string().min(1).max(8_192);
 
+/** The statusline script, uploaded as-is. Shared by register and update. */
+const scriptSchema = z
+  .string()
+  .min(10)
+  .max(32_768)
+  .refine((v) => !v.includes("\u0000"), { message: "Binary not allowed" });
+
+/** Companion Claude Code slash-command files (`commands/<name>.md`) that ship
+ *  with a statusline — e.g. the interaction command that drives it. SECURITY:
+ *  unlike previews these are NOT inert. Each installs to ~/.claude/commands/
+ *  and is a PROMPT the user's agent executes with full tool access — a bigger
+ *  injection surface than the script itself. Every file therefore goes through
+ *  scanRedFlags AND into the LLM audit alongside the script, and install flows
+ *  tell users to read each one first. */
+const COMMAND_FILE_PATH = /^commands\/[a-z0-9][a-z0-9-]{0,31}\.md$/;
+const companionFileSchema = z.object({
+  path: z
+    .string()
+    .regex(
+      COMMAND_FILE_PATH,
+      'commands/<kebab-name>.md, e.g. "commands/statusline-theme.md"',
+    )
+    .meta({ example: "commands/statusline-theme.md" }),
+  content: z
+    .string()
+    .min(10)
+    .max(16_384)
+    .refine((v) => !v.includes("\u0000"), { message: "Binary not allowed" }),
+});
+const filesSchema = z
+  .array(companionFileSchema)
+  .min(1)
+  .max(3)
+  .refine((files) => new Set(files.map((f) => f.path)).size === files.length, {
+    message: "Duplicate file paths",
+  })
+  .refine(
+    (files) => files.reduce((n, f) => n + f.content.length, 0) <= 49_152,
+    { message: "Files exceed 48 KB total" },
+  );
+
 /** Optional 1 fps animation: successive captures of the same statusline.
  *  Inert text like previewAnsi — the site plays it client-side, never executes. */
 const previewFramesSchema = z
@@ -79,6 +125,42 @@ const previewFramesSchema = z
  *  Derived from the stored script at read time, never persisted. */
 function sha256Hex(script: string): string {
   return createHash("sha256").update(script, "utf8").digest("hex");
+}
+
+/** Red-flag scan over the full artifact set. Companion command files are
+ *  agent-executed prose — a `curl | sh` instruction in one is as hot as in
+ *  the script — so each gets the same deterministic scan, with hits prefixed
+ *  by the file path so the listing shows where. */
+function scanSubmission(
+  script: string,
+  files?: CompanionFile[] | null,
+): RedFlag[] {
+  const flags = scanRedFlags(script);
+  for (const f of files ?? []) {
+    for (const hit of scanRedFlags(f.content)) {
+      flags.push({ ...hit, label: `${f.path}: ${hit.label}` });
+    }
+  }
+  return flags;
+}
+
+/** Deterministic backstop shared by every audit path: a high-severity scanner
+ *  hit vetoes an LLM "approve" into reject (surfacing the flags as risks);
+ *  any other hit downgrades approve to caution so the listing carries the
+ *  warning. Mutates the audit in place. */
+function applyScannerBackstop(
+  audit: { verdict: "approve" | "caution" | "reject"; risks: string[] },
+  flags: RedFlag[],
+): void {
+  if (audit.verdict === "approve" && hasHighSeverity(flags)) {
+    audit.verdict = "reject";
+    audit.risks = [
+      ...audit.risks,
+      ...flags.filter((f) => f.severity === "high").map((f) => f.label),
+    ];
+  } else if (audit.verdict === "approve" && flags.length > 0) {
+    audit.verdict = "caution";
+  }
 }
 
 function publicEntry(row: StatuslineWithAuthor, includePayload: boolean) {
@@ -111,6 +193,15 @@ function publicEntry(row: StatuslineWithAuthor, includePayload: boolean) {
     scriptSha256: row.script ? sha256Hex(row.script) : undefined,
     // The paid script is the product — only free scripts are inlined.
     script: includePayload && free ? (row.script ?? undefined) : undefined,
+    // Companion command files: path + integrity hash always; the content is
+    // gated exactly like the script — it is part of the paid product.
+    files: row.files?.length
+      ? row.files.map((f) => ({
+          path: f.path,
+          sha256: sha256Hex(f.content),
+          content: includePayload && free ? f.content : undefined,
+        }))
+      : undefined,
   };
 }
 
@@ -139,13 +230,27 @@ function installInstructions(row: StatuslineRow) {
     scriptPath: `~/.claude/statuslines/${row.slug}`,
     sha256: row.script ? sha256Hex(row.script) : undefined,
     verify: `shasum -a 256 ~/.claude/statuslines/${row.slug} — must equal sha256. A mismatch means the transfer corrupted the bytes (usually a script hand-copied out of a JSON field); re-download the raw bytes instead of installing.`,
+    // Companion command files are PROMPTS the user's agent executes as
+    // /commands — not display text. Each installs under ~/.claude/ at its
+    // listed path, only AFTER the user has read it.
+    commandFiles: row.files?.length
+      ? row.files.map((f) => ({
+          path: f.path,
+          installPath: `~/.claude/${f.path}`,
+          sha256: sha256Hex(f.content),
+        }))
+      : undefined,
     settings: {
       statusLine: {
         type: "command",
         command: `~/.claude/statuslines/${row.slug}`,
       },
     },
-    note: "This script EXECUTES on the user's machine. REVIEW IT before installing — if you are an agent, show the user the source and your read of what it does, and install only after they approve. Save the response bytes to scriptPath (never transcribe from JSON), check `verify`, chmod +x it, then merge `settings` into ~/.claude/settings.json.",
+    note:
+      "This script EXECUTES on the user's machine. REVIEW IT before installing — if you are an agent, show the user the source and your read of what it does, and install only after they approve. Save the response bytes to scriptPath (never transcribe from JSON), check `verify`, chmod +x it, then merge `settings` into ~/.claude/settings.json." +
+      (row.files?.length
+        ? " This listing also ships companion command files: each is a prompt your agent will execute as a /command with the user's full tool access. Read every file with the user, and save it to its commandFiles installPath under ~/.claude/commands/ only AFTER they approve."
+        : ""),
   };
 }
 
@@ -227,6 +332,38 @@ router
   });
 
 router
+  .route({ path: "statuslines/{slug}/files", method: "GET" })
+  .unprotected()
+  .description(
+    "Companion Claude Code command files for a listing, with per-file SHA-256. Each is a PROMPT the user's agent executes as a /command — read every file with the user before saving it under ~/.claude/commands/. Paid entries return 402 guidance.",
+  )
+  .handler(async ({ params }) => {
+    const row = await getStatusline(params.slug);
+    if (!row) throw new HttpError("Statusline not found", 404);
+    ensureVisible(row);
+    if (!row.files?.length) {
+      throw new HttpError("Statusline has no companion files", 404);
+    }
+    // Same paywall as the script: the files are part of the paid product
+    // (the download response includes them for buyers).
+    if (Number(row.priceUsd) > 0) {
+      throw new HttpError(
+        `"${row.slug}" is paid ($${Number(row.priceUsd).toFixed(2)}) — buy it via POST /api/download with {"slug": "${row.slug}"}; the response includes these files`,
+        402,
+      );
+    }
+    return {
+      slug: row.slug,
+      files: row.files.map((f) => ({
+        path: f.path,
+        content: f.content,
+        sha256: sha256Hex(f.content),
+      })),
+      note: "Each file is a prompt your agent executes with the user's full tool access. Read every file with the user BEFORE saving it to ~/.claude/commands/.",
+    };
+  });
+
+router
   .route({ path: "statuslines/{slug}/preview", method: "POST" })
   .siwx()
   .body(
@@ -302,6 +439,15 @@ const installOutputSchema = z.object({
   scriptPath: z.string(),
   sha256: z.string().optional(),
   verify: z.string(),
+  commandFiles: z
+    .array(
+      z.object({
+        path: z.string(),
+        installPath: z.string(),
+        sha256: z.string(),
+      }),
+    )
+    .optional(),
   settings: z.object({
     statusLine: z.object({ type: z.literal("command"), command: z.string() }),
   }),
@@ -314,6 +460,11 @@ const downloadOutputSchema = z.object({
   capabilities: z.array(z.string()),
   script: z.string().optional(),
   scriptSha256: z.string().optional(),
+  files: z
+    .array(
+      z.object({ path: z.string(), content: z.string(), sha256: z.string() }),
+    )
+    .optional(),
   install: installOutputSchema,
 });
 
@@ -394,6 +545,15 @@ router
       capabilities: row.capabilities,
       script: row.script ?? undefined,
       scriptSha256: row.script ? sha256Hex(row.script) : undefined,
+      // Paid delivery of the companion command files — the only way to get
+      // their content for a paid listing.
+      files: row.files?.length
+        ? row.files.map((f) => ({
+            path: f.path,
+            content: f.content,
+            sha256: sha256Hex(f.content),
+          }))
+        : undefined,
       install: installInstructions(row),
     };
   });
@@ -423,16 +583,14 @@ const registerBody = z.object({
     .refine((v) => v.length >= 8, "Too short")
     .meta({ example: registerExample.description }),
   /** The statusline script, uploaded as-is. */
-  script: z
-    .string()
-    .min(10)
-    .max(32_768)
-    .refine((v) => !v.includes("\u0000"), { message: "Binary not allowed" })
-    .meta({ example: registerExample.script }),
+  script: scriptSchema.meta({ example: registerExample.script }),
   /** Captured sample output for the preview (echo '{}' | COLUMNS=120 <script>). */
   previewAnsi: previewAnsiSchema.meta({ example: registerExample.previewAnsi }),
   /** Optional 1 fps animation: the same capture repeated on successive seconds. */
   previewFrames: previewFramesSchema.optional(),
+  /** Optional companion command files — audited together with the script and
+   *  scanned like it: they are agent-executed prompts, not data. */
+  files: filesSchema.optional(),
   priceUsd: priceString.default("0").meta({ example: registerExample.priceUsd }),
   tags: z
     .array(printable(24).refine((v) => v.length >= 1, "Empty tag"))
@@ -463,6 +621,9 @@ const registerOutputSchema = z.union([
     capabilities: z.array(z.string()),
     priceUsd: z.string(),
     scriptSha256: z.string(),
+    files: z
+      .array(z.object({ path: z.string(), sha256: z.string() }))
+      .optional(),
     connectTwitter: z
       .object({ status: z.enum(["verified", "unclaimed"]) })
       .passthrough(),
@@ -494,7 +655,7 @@ router
     note: "The listing is live.",
   })
   .description(
-    `Publish and audit a Claude Code status line for $${REGISTER_PRICE}. Submit the script, captured preview, listing metadata, and price. Rejected scripts are not listed and the audit fee is not refunded. Paid downloads settle directly to the publishing wallet with no platform fee.`,
+    `Publish and audit a Claude Code status line for $${REGISTER_PRICE}. Submit the script, captured preview, listing metadata, price, and optionally up to 3 companion command files (commands/<name>.md — audited with the script). Rejected scripts are not listed and the audit fee is not refunded. Paid downloads settle directly to the publishing wallet with no platform fee.`,
   )
   .validate(async (body) => {
     if (!auditAvailable()) {
@@ -509,39 +670,29 @@ router
   })
   .handler(async ({ body, wallet }) => {
     // The submission fee funds this audit. It runs strictly AFTER payment
-    // verification, so unpaid probes can never trigger it.
+    // verification, so unpaid probes can never trigger it. Companion files
+    // ride along so the LLM reviews their prose too — they are agent-executed
+    // prompts, not data.
     const audit = await auditScript({
       script: body.script,
       name: body.name,
       description: body.description,
       author: wallet ?? "unknown",
+      files: body.files,
     });
-    {
-      const flags = scanRedFlags(body.script);
-      // Deterministic backstop: a high-severity pattern hit is an automatic
-      // reject regardless of the LLM verdict; medium hits downgrade approve
-      // to caution so the listing carries the warning.
-      if (audit.verdict === "approve" && hasHighSeverity(flags)) {
-        audit.verdict = "reject";
-        audit.risks = [
-          ...audit.risks,
-          ...flags.filter((f) => f.severity === "high").map((f) => f.label),
-        ];
-      } else if (audit.verdict === "approve" && flags.length > 0) {
-        audit.verdict = "caution";
-      }
-      if (audit.verdict === "reject") {
-        // Deliberate 200: the fee bought the audit, so it settles. The
-        // script is simply not listed.
-        return {
-          listed: false,
-          verdict: "reject",
-          summary: audit.summary,
-          risks: audit.risks,
-          auditedBy: audit.model,
-          note: "The audit fee is non-refundable — it paid for this analysis. Fix the issues and register again.",
-        };
-      }
+    const flags = scanSubmission(body.script, body.files);
+    applyScannerBackstop(audit, flags);
+    if (audit.verdict === "reject") {
+      // Deliberate 200: the fee bought the audit, so it settles. The
+      // script is simply not listed.
+      return {
+        listed: false,
+        verdict: "reject",
+        summary: audit.summary,
+        risks: audit.risks,
+        auditedBy: audit.model,
+        note: "The audit fee is non-refundable — it paid for this analysis. Fix the issues and register again.",
+      };
     }
 
     const identity = wallet ? await getIdentity(wallet) : null;
@@ -556,13 +707,14 @@ router
       script: body.script,
       previewAnsi: body.previewAnsi,
       previewFrames: body.previewFrames ?? null,
+      files: body.files ?? null,
       capabilities: audit.capabilities.length
         ? audit.capabilities
         : detectCapabilities(body.script),
       auditVerdict: audit.verdict,
       auditSummary: audit.summary,
       auditModel: audit.model,
-      redFlags: scanRedFlags(body.script).map((f) => `${f.severity}: ${f.label}`),
+      redFlags: flags.map((f) => `${f.severity}: ${f.label}`),
       tags: body.tags,
       registeredBy: wallet,
     });
@@ -581,6 +733,12 @@ router
       capabilities: row.capabilities,
       priceUsd: row.priceUsd,
       scriptSha256: sha256Hex(body.script),
+      files: body.files?.length
+        ? body.files.map((f) => ({
+            path: f.path,
+            sha256: sha256Hex(f.content),
+          }))
+        : undefined,
       // Always tell the creator how their authorship shows and how to claim it.
       connectTwitter: identity?.verified
         ? {
@@ -615,11 +773,178 @@ router
     };
   });
 
+// --- Owner update (same flat fee — every update re-runs the audit) -----------
+
+const updateExample = {
+  script: "#!/bin/sh\nprintf 'discovery v2'\n",
+};
+
+const updateBody = z
+  .object({
+    /** The replacement script; same shape and limits as register. */
+    script: scriptSchema.meta({ example: updateExample.script }),
+    /** Fresh captured preview for the new script, if it changed. */
+    previewAnsi: previewAnsiSchema.optional(),
+    previewFrames: previewFramesSchema.optional(),
+    /** Replacement companion files. Omitted = the update ships none: the
+     *  stored set must always be exactly what this audit reviewed, so stale
+     *  files never survive a script swap. */
+    files: filesSchema.optional(),
+  })
+  .meta({ example: updateExample });
+
+const updateOutputSchema = z.union([
+  z.object({
+    updated: z.literal(false),
+    verdict: z.literal("reject"),
+    summary: z.string(),
+    risks: z.array(z.string()),
+    auditedBy: z.string(),
+    note: z.string(),
+  }),
+  z.object({
+    updated: z.literal(true),
+    slug: z.string(),
+    url: z.string(),
+    audit: z.object({
+      verdict: z.enum(["approve", "caution", "reject"]),
+      summary: z.string(),
+      risks: z.array(z.string()),
+      model: z.string(),
+    }),
+    capabilities: z.array(z.string()),
+    scriptSha256: z.string(),
+    files: z
+      .array(z.object({ path: z.string(), sha256: z.string() }))
+      .optional(),
+    note: z.string(),
+  }),
+]);
+
+router
+  .route({ path: "statuslines/{slug}/update", method: "POST" })
+  // Same flat fee as register: every update re-runs the full LLM audit on the
+  // replacement script + files. Deliberately NOT chained with .siwx(): on
+  // this router `.paid().siwx()` means pay-once-then-replay — an entitlement
+  // lets later SIWX-signed calls skip payment entirely — which would hand the
+  // owner unlimited free audits after their first update. The settled payment
+  // already proves control of the paying wallet; the handler requires that
+  // wallet to be the listing owner.
+  .paid(REGISTER_PRICE)
+  .body(updateBody)
+  .inputExample(updateExample)
+  .output(updateOutputSchema)
+  .outputExample({
+    updated: true,
+    slug: "x402scan-registration-probe",
+    url: "https://claudelines.com/statuslines/x402scan-registration-probe",
+    audit: {
+      verdict: "approve",
+      summary: "The script prints a static status line.",
+      risks: [],
+      model: "claude-sonnet-4-5",
+    },
+    capabilities: [],
+    scriptSha256:
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    note: "The listing now serves the updated script.",
+  })
+  .description(
+    `Update an owned listing's script — and optionally its companion command files and preview — for $${REGISTER_PRICE}: the fee funds the same LLM audit as registration, re-run on the replacement. Only the wallet that published the listing may pay for an update. A rejected update changes NOTHING: the existing listing stays live as-is. Slug, price, installs, sales, and feedback all carry over.`,
+  )
+  .validate(async () => {
+    if (!auditAvailable()) {
+      throw new HttpError(
+        "Updates are temporarily unavailable (audit service not configured)",
+        503,
+      );
+    }
+  })
+  .handler(async ({ params, body, wallet }) => {
+    // Ownership gate BEFORE the audit: any throw here means the payment never
+    // settles and no audit spend happens.
+    const row = await getStatusline(params.slug);
+    if (!row) throw new HttpError("Statusline not found", 404);
+    ensureVisible(row);
+    if (!wallet) throw new HttpError("Wallet identity required", 401);
+    if (
+      !row.authorWallet ||
+      row.authorWallet.toLowerCase() !== wallet.toLowerCase()
+    ) {
+      throw new HttpError("Only the listing owner can update its script", 403);
+    }
+
+    const audit = await auditScript({
+      script: body.script,
+      name: row.name,
+      description: row.description,
+      author: wallet,
+      files: body.files,
+    });
+    const flags = scanSubmission(body.script, body.files);
+    applyScannerBackstop(audit, flags);
+    if (audit.verdict === "reject") {
+      // Fail-safe (deliberate): a rejected UPDATE leaves the existing listing
+      // untouched and live — the served version passed its own audit and is
+      // still exactly what installers reviewed. Maintainers who'd rather
+      // treat a rejected update as evidence against the current listing can
+      // flip this to also setHidden(row.slug, true).
+      // Deliberate 200: the fee bought the audit, so it settles.
+      return {
+        updated: false,
+        verdict: "reject",
+        summary: audit.summary,
+        risks: audit.risks,
+        auditedBy: audit.model,
+        note: "The existing listing is unchanged and still live. The audit fee is non-refundable — it paid for this analysis. Fix the issues and update again.",
+      };
+    }
+
+    const capabilities = audit.capabilities.length
+      ? audit.capabilities
+      : detectCapabilities(body.script);
+    await updateStatuslineScript(row.slug, {
+      script: body.script,
+      files: body.files ?? null,
+      capabilities,
+      auditVerdict: audit.verdict,
+      auditSummary: audit.summary,
+      auditModel: audit.model,
+      redFlags: flags.map((f) => `${f.severity}: ${f.label}`),
+      previewAnsi: body.previewAnsi,
+      previewFrames: body.previewFrames,
+    });
+    const base = siteUrl();
+    return {
+      updated: true,
+      slug: row.slug,
+      url: `${base}/statuslines/${row.slug}`,
+      audit: {
+        verdict: audit.verdict,
+        summary: audit.summary,
+        risks: audit.risks,
+        model: audit.model,
+      },
+      capabilities,
+      scriptSha256: sha256Hex(body.script),
+      files: body.files?.length
+        ? body.files.map((f) => ({
+            path: f.path,
+            sha256: sha256Hex(f.content),
+          }))
+        : undefined,
+      note: "The listing now serves the updated script. Installs, sales, and feedback carry over.",
+    };
+  });
+
 // --- Unauthenticated publish (free, UNAUDITED, no owner) -----------------------
 
 const SUBMITS_PER_DAY = 5;
 
-const submitBody = registerBody.omit({ priceUsd: true });
+// No `files` on the wallet-less path: companion command files are
+// agent-executed prompts, and without the funded LLM audit the deterministic
+// scanner alone is far too weak a gate for that injection surface.
+const submitBody = registerBody.omit({ priceUsd: true, files: true });
 
 router
   .route({ path: "submit", method: "POST" })
@@ -758,22 +1083,17 @@ router
   .handler(async ({ body, wallet }) => {
     const row = await getStatusline(body.slug);
     if (!row?.script) throw new HttpError("Statusline not found", 404);
+    // Stored companion files are part of the audited artifact set — a verdict
+    // that never saw them would vouch for prompts it never read.
     const audit = await auditScript({
       script: row.script,
       name: row.name,
       description: row.description,
       author: row.authorWallet ?? "unauthenticated submission",
+      files: row.files ?? undefined,
     });
-    const flags = scanRedFlags(row.script);
-    if (audit.verdict === "approve" && hasHighSeverity(flags)) {
-      audit.verdict = "reject";
-      audit.risks = [
-        ...audit.risks,
-        ...flags.filter((f) => f.severity === "high").map((f) => f.label),
-      ];
-    } else if (audit.verdict === "approve" && flags.length > 0) {
-      audit.verdict = "caution";
-    }
+    const flags = scanSubmission(row.script, row.files);
+    applyScannerBackstop(audit, flags);
     await updateStatuslineAudit(row.slug, {
       auditVerdict: audit.verdict,
       auditSummary: audit.summary,
@@ -932,6 +1252,7 @@ async function auditAndPersist(entry: {
   script: string | null;
   name: string;
   description: string;
+  files?: CompanionFile[] | null;
 }) {
   if (!entry.script) return { slug: entry.slug, skipped: "no script" };
   const audit = await auditScript({
@@ -939,17 +1260,10 @@ async function auditAndPersist(entry: {
     name: entry.name,
     description: entry.description,
     author: "backfill",
+    files: entry.files ?? undefined,
   });
-  const flags = scanRedFlags(entry.script);
-  if (audit.verdict === "approve" && hasHighSeverity(flags)) {
-    audit.verdict = "reject";
-    audit.risks = [
-      ...audit.risks,
-      ...flags.filter((f) => f.severity === "high").map((f) => f.label),
-    ];
-  } else if (audit.verdict === "approve" && flags.length > 0) {
-    audit.verdict = "caution";
-  }
+  const flags = scanSubmission(entry.script, entry.files);
+  applyScannerBackstop(audit, flags);
   await updateStatuslineAudit(entry.slug, {
     auditVerdict: audit.verdict,
     auditSummary: audit.summary,
