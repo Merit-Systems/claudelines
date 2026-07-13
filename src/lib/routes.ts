@@ -34,6 +34,7 @@ import {
   getFeedback,
   recordInstall,
   deleteStatusline,
+  setArchived,
   setHidden,
   updateStatuslineAudit,
   updateStatuslinePreview,
@@ -131,6 +132,8 @@ function callerHash(request: Request): string {
 function ensureVisible(row: StatuslineRow): void {
   if (row.hidden)
     throw new HttpError("This statusline has been delisted", 410);
+  if (row.archived)
+    throw new HttpError("This statusline was archived by its owner", 410);
 }
 
 function installInstructions(row: StatuslineRow) {
@@ -267,6 +270,38 @@ router
       slug: row.slug,
       previewAnsi,
       previewFrames: body.previewFrames ?? undefined,
+    };
+  });
+
+router
+  .route({ path: "statuslines/{slug}/archive", method: "POST" })
+  .siwx()
+  .body(z.object({ archived: z.boolean().default(true) }))
+  .inputExample({ archived: true })
+  .description(
+    "Archive (delist) or restore your own listing. Free and restricted to the wallet that published it. Archiving hides the listing from browsing, installs, and purchases; the slug stays reserved and {archived: false} relists it. This is separate from moderation — it cannot restore a listing delisted by an audit reject, reports, or an admin.",
+  )
+  .handler(async ({ params, body, wallet }) => {
+    if (!wallet) throw new HttpError("Wallet identity required", 401);
+
+    const row = await getStatusline(params.slug);
+    if (!row) throw new HttpError("Statusline not found", 404);
+    if (
+      !row.authorWallet ||
+      row.authorWallet.toLowerCase() !== wallet.toLowerCase()
+    ) {
+      throw new HttpError("Only the listing owner can archive it", 403);
+    }
+
+    await setArchived(row.slug, body.archived);
+    return {
+      slug: row.slug,
+      archived: body.archived,
+      note: body.archived
+        ? "The listing is archived — hidden from browsing and downloads. The slug stays yours; restore it anytime with {archived: false}."
+        : row.hidden
+          ? "Unarchived, but the listing is still delisted by moderation and remains hidden."
+          : "The listing is live again.",
     };
   });
 

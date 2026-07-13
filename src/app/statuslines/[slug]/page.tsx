@@ -23,14 +23,14 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const row = await getStatusline(slug);
-  if (!row) return {};
+  if (!row || row.hidden || row.archived) return {};
   return { description: row.description };
 }
 
 export default async function StatuslinePage({ params }: Props) {
   const { slug } = await params;
   const row = await getStatusline(slug);
-  if (!row) notFound();
+  if (!row || row.hidden || row.archived) notFound();
 
   const free = Number(row.priceUsd) === 0;
   const feedback = await getFeedback(row.id);
