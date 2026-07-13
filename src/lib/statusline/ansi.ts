@@ -14,6 +14,37 @@ export interface StyledRun {
   italic?: boolean;
 }
 
+export interface TerminalGrapheme {
+  text: string;
+  cells: 1 | 2;
+}
+
+// Keep combining marks attached to their base character, then account for the
+// double-width cells used by CJK glyphs and emoji. Generated social images use
+// this so every captured column remains visible and aligned.
+const segmenter =
+  typeof Intl !== "undefined" && "Segmenter" in Intl
+    ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+    : null;
+
+const WIDE =
+  /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹯＀-｠￠-￦\u{1F300}-\u{1FAFF}\u{20000}-\u{2FFFD}]/u;
+
+export function terminalGraphemes(text: string): TerminalGrapheme[] {
+  const graphemes = segmenter
+    ? [...segmenter.segment(text)].map((part) => part.segment)
+    : Array.from(text);
+
+  return graphemes.map((grapheme) => ({
+    text: grapheme,
+    cells: WIDE.test(grapheme) ? 2 : 1,
+  }));
+}
+
+export function terminalCellWidth(text: string): number {
+  return terminalGraphemes(text).reduce((width, part) => width + part.cells, 0);
+}
+
 const BASE16: Record<number, string> = {
   30: "#0d0d0d", 31: "#e5484d", 32: "#46a758", 33: "#d4a72c",
   34: "#3e63dd", 35: "#8e4ec6", 36: "#12a594", 37: "#d4d4d4",
