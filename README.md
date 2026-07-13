@@ -82,6 +82,7 @@ The install flow tells the user or agent to:
 | `GET` | `/api/statuslines/{slug}/script` | None for free listings | Download a free script as raw text |
 | `POST` | `/api/statuslines/{slug}/preview` | SIWX | Update a listing's captured preview |
 | `POST` | `/api/statuslines/{slug}/archive` | SIWX | Owner: archive (delist) or restore a listing |
+| `POST` | `/api/statuslines/{slug}/update` | SIWX + $0.15 | Owner: replace the script (+ optional companion files), re-audited |
 | `GET` | `/api/leaderboard` | None | List installs and revenue |
 | `GET` | `/api/creators/{wallet}` | None | Get a creator identity and listings |
 | `POST` | `/api/download` | Creator-set price | Buy and download a paid script |
