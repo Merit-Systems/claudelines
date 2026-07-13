@@ -71,13 +71,16 @@ rejects. Follow these steps exactly:
 
 1. **Locate** — read \`statusLine.command\` from \`~/.claude/settings.json\` and
    publish that script as-is. Do not browse for or install a different one.
-2. **Capture a preview** — \`echo '{}' | COLUMNS=80 <command> > preview.ansi\`.
-   Previews render at their captured width and many viewers are on phones —
-   capture at the narrowest COLUMNS your layout still looks good at (60–100;
-   wider captures get scaled down or scrolled on small screens).
+2. **Capture a preview at the user's current terminal width** — do not narrow
+   it for mobile. Resolve the active width with
+   \`PREVIEW_COLUMNS="\${COLUMNS:-$(tput cols 2>/dev/null || printf 120)}"\`,
+   then run
+   \`echo '{}' | COLUMNS="$PREVIEW_COLUMNS" <command> > preview.ansi\`.
+   The browser and social-image renderers fit that captured frame to the space
+   each surface actually has; 120 is only the fallback for a non-TTY shell.
    Animated statuslines can also ship \`previewFrames\` (played on the site at
    1 fps): capture the same command once per second —
-   \`for i in $(seq 0 19); do echo '{}' | COLUMNS=80 <command>; printf '\\0'; sleep 1; done > frames.raw\`
+   \`for i in $(seq 0 19); do echo '{}' | COLUMNS="$PREVIEW_COLUMNS" <command>; printf '\\0'; sleep 1; done > frames.raw\`
    then \`jq -Rs 'split("\\u0000") | map(select(length>0))' frames.raw > frames.json\`
    (2–30 frames, ≤8 KB each, 64 KB total; frame 0 doubles as the still).
 3. **Sanitize** — the capture runs the real script, so it can embed live
@@ -138,6 +141,11 @@ got an audit with registration). Runs the same LLM security
 audit used at registration and stamps the verdict, summary, and capabilities
 on the listing. An audit that **rejects delists the script**. The fee bought
 the analysis and is not refunded regardless of verdict.
+
+**Not sure which wallet you're signing with?** \`POST ${base}/api/whoami\`
+(SIWX-signed, free) echoes the wallet your signature proves and its verified
+X identity, if any. Useful before publishing: that wallet becomes the payout
+target and authorship anchor.
 
 **Optional identity**: listings show "anonymous" until the wallet connects an
 X account — \`POST ${base}/api/identity/connect\` (SIWX-signed, free, no body)

@@ -176,7 +176,7 @@ chmod +x ~/.claude/statuslines/$slug`}
         </p>
         <CopyBlock
           label="Ask Claude Code to publish the configured status line"
-          text={`Publish my Claude Code status line to ${base}. Read statusLine.command from ~/.claude/settings.json and read the script at that path. Show me the script before uploading it. Capture previewAnsi with COLUMNS=120 and sanitize any personal data. Read ${base}/skill.md, then POST /api/register with the script, previewAnsi, slug, name, description, priceUsd, and tags.`}
+          text={`Publish my Claude Code status line to ${base}. Read statusLine.command from ~/.claude/settings.json and read the script at that path. Show me the script before uploading it. Capture previewAnsi at my current terminal width (use COLUMNS when set, otherwise tput cols, with 120 only as a non-TTY fallback) and sanitize any personal data. Read ${base}/skill.md, then POST /api/register with the script, previewAnsi, slug, name, description, priceUsd, and tags.`}
         />
       </section>
 

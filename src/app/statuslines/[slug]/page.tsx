@@ -24,7 +24,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const row = await getStatusline(slug);
   if (!row || row.hidden || row.archived) return {};
-  return { description: row.description };
+  return {
+    title: `${row.name} | ClaudeLines`,
+    description: row.description,
+    alternates: { canonical: `/statuslines/${row.slug}` },
+    openGraph: {
+      title: row.name,
+      description: row.description,
+      type: "website",
+      url: `/statuslines/${row.slug}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: row.name,
+      description: row.description,
+    },
+  };
 }
 
 export default async function StatuslinePage({ params }: Props) {

@@ -619,7 +619,7 @@ const registerBody = z.object({
     .meta({ example: registerExample.description }),
   /** The statusline script, uploaded as-is. */
   script: scriptSchema.meta({ example: registerExample.script }),
-  /** Captured sample output for the preview (echo '{}' | COLUMNS=120 <script>). */
+  /** Sample output captured at the publisher's current terminal width. */
   previewAnsi: previewAnsiSchema.meta({ example: registerExample.previewAnsi }),
   /** Optional 1 fps animation: the same capture repeated on successive seconds. */
   previewFrames: previewFramesSchema.optional(),
@@ -1198,6 +1198,24 @@ router
     const identity = await getIdentity(params.wallet);
     if (!identity?.verified || !identity.twitterHandle) return { verified: false };
     return { verified: true, handle: identity.twitterHandle };
+  });
+
+router
+  .route({ path: "whoami", method: "POST" })
+  .siwx()
+  .description(
+    "Echo the wallet your SIWX signature proves, plus its verified X identity if connected. Free. Lets an agent confirm which wallet it is signing with before publishing or claiming.",
+  )
+  .handler(async ({ wallet }) => {
+    if (!wallet) throw new HttpError("Wallet identity required", 401);
+    const identity = await getIdentity(wallet);
+    return {
+      wallet: wallet.toLowerCase(),
+      identity:
+        identity?.verified && identity.twitterHandle
+          ? { handle: identity.twitterHandle }
+          : null,
+    };
   });
 
 // --- Report & takedown -------------------------------------------------------

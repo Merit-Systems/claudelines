@@ -7,12 +7,14 @@
     "build": "drizzle-kit migrate && next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "tsx --test src/**/*.test.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@agentcash/router": "1.18.0",
+    "@fontsource/jetbrains-mono": "5.2.8",
     "@neondatabase/serverless": "1.1.0",
     "@vercel/analytics": "2.0.1",
     "class-variance-authority": "0.7.1",

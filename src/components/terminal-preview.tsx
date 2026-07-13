@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { parseAnsi, type StyledRun } from "@/lib/statusline/ansi";
+import {
+  CANONICAL_DARK_TERMINAL_PALETTE,
+  parseAnsi,
+  terminalCellWidth,
+  terminalColorCss,
+  terminalGraphemes,
+  type StyledRun,
+} from "@/lib/statusline/ansi";
 import { ClaudeCodeMark } from "@/components/claude-code-mark";
 import { cn } from "@/lib/utils";
 
@@ -13,17 +20,29 @@ import { cn } from "@/lib/utils";
  * refresh cadence): a flipbook of parsed text, still nothing executing.
  */
 
-const DEFAULT_FG = "var(--term-fg)";
+const LIGHT_ANSI = [
+  "#171717", "#c01c28", "#26a269", "#a2734c",
+  "#1a5fb4", "#813d9c", "#0e7490", "#deddda",
+  "#5e5c64", "#e01b24", "#33d17a", "#c88800",
+  "#3584e4", "#c061cb", "#168a9d", "#ffffff",
+] as const;
+
+function ansiVariables(colors: readonly string[]) {
+  return Object.fromEntries(
+    colors.map((color, index) => [`--term-color-${index}`, color]),
+  );
+}
 
 /** Terminal palettes as CSS custom properties, toggled client-side. */
 export const TERM_THEMES = {
   dark: {
-    "--term-bg": "#1a1a1a",
-    "--term-fg": "#d4d4d4",
+    "--term-bg": CANONICAL_DARK_TERMINAL_PALETTE.background,
+    "--term-fg": CANONICAL_DARK_TERMINAL_PALETTE.foreground,
     "--term-muted": "#525252",
     "--term-border": "#333333",
     "--term-dim": "#3f3f3f",
     "--term-cursor": "#a3a3a3",
+    ...ansiVariables(CANONICAL_DARK_TERMINAL_PALETTE.colors),
   },
   light: {
     "--term-bg": "#ffffff",
@@ -32,33 +51,109 @@ export const TERM_THEMES = {
     "--term-border": "#d4d4d4",
     "--term-dim": "#c8c8c8",
     "--term-cursor": "#525252",
+    ...ansiVariables(LIGHT_ANSI),
   },
 } as const;
 
 export type TermTheme = keyof typeof TERM_THEMES;
 
-// Grapheme segmentation so combining marks stay glued to their base char.
-const segmenter =
-  typeof Intl !== "undefined" && "Segmenter" in Intl
-    ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
-    : null;
+const VECTOR_GLYPHS = new Set(["⬢", "◆", "⟐", "↳", "█", "▀", "▄"]);
 
-function graphemes(text: string): string[] {
-  if (segmenter) return [...segmenter.segment(text)].map((s) => s.segment);
-  return Array.from(text);
+function TerminalVectorGlyph({ glyph }: { glyph: string }) {
+  const common = {
+    viewBox: "0 0 100 100",
+    className: "inline-block h-[0.86em] w-[0.72em]",
+    role: "img",
+    "aria-label": glyph,
+  } as const;
+  if (glyph === "⬢") {
+    return (
+      <svg {...common}>
+        <path d="M25 6h50l22 44-22 44H25L3 50 25 6Z" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (glyph === "◆") {
+    return (
+      <svg {...common}>
+        <path d="M50 3 97 50 50 97 3 50 50 3Z" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (glyph === "⟐") {
+    return (
+      <svg {...common}>
+        <path
+          d="M50 8 92 50 50 92 8 50 50 8Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="9"
+        />
+        <circle cx="50" cy="50" r="8" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (glyph === "↳") {
+    return (
+      <svg {...common}>
+        <path
+          d="M14 8v43c0 17 9 26 27 26h43M67 60l17 17-17 17"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  if (glyph === "█") {
+    return (
+      <svg {...common} className="inline-block h-full w-full">
+        <path d="M0 0h100v100H0Z" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (glyph === "▀" || glyph === "▄") {
+    return (
+      <svg {...common} className="inline-block h-full w-full">
+        <path
+          d={glyph === "▀" ? "M0 0h100v50H0Z" : "M0 50h100v50H0Z"}
+          fill="currentColor"
+        />
+      </svg>
+    );
+  }
+  return null;
 }
 
-// Terminal double-width cells: East Asian Wide/Fullwidth ranges and emoji.
-const WIDE =
-  /[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦\u{1F300}-\u{1FAFF}\u{20000}-\u{2FFFD}]/u;
-
 function Run({ run }: { run: StyledRun }) {
+  const foreground = run.inverse
+    ? run.bg
+      ? terminalColorCss(run.bg, "background")
+      : "var(--term-bg)"
+    : terminalColorCss(run.fg, "foreground");
+  const background = run.inverse
+    ? run.fg
+      ? terminalColorCss(run.fg, "foreground")
+      : "var(--term-fg)"
+    : run.bg
+      ? terminalColorCss(run.bg, "background")
+      : "transparent";
+  const textDecoration = [
+    run.underline ? "underline" : "",
+    run.strikethrough ? "line-through" : "",
+  ].filter(Boolean).join(" ") || "none";
+
   // Whitespace positions the art — give it exactly its captured width.
   if (/^\s+$/.test(run.text)) {
     return (
       <span
-        className="shrink-0"
-        style={{ width: `${run.text.length}ch` }}
+        className="h-full shrink-0"
+        style={{
+          width: `${terminalCellWidth(run.text)}ch`,
+          background,
+        }}
         aria-hidden
       />
     );
@@ -67,23 +162,27 @@ function Run({ run }: { run: StyledRun }) {
     <span
       className="inline-flex h-full shrink-0 items-center"
       style={{
-        color: run.fg ?? DEFAULT_FG,
-        background: run.bg ?? "transparent",
+        color: foreground,
+        background,
         fontWeight: run.bold ? 700 : 400,
-        opacity: run.dim ? 0.65 : 1,
         fontStyle: run.italic ? "italic" : "normal",
+        textDecoration,
       }}
     >
       {/* One fixed 1ch (2ch for wide chars) cell per grapheme: font-fallback
           glyphs with off-grid advance widths can't shift the columns after
           them, so captured frames stay aligned across both lines. */}
-      {graphemes(run.text).map((g, i) => (
+      {terminalGraphemes(run.text).map((grapheme, i) => (
         <span
           key={i}
           className="inline-block shrink-0 overflow-visible whitespace-pre"
-          style={{ width: WIDE.test(g) ? "2ch" : "1ch" }}
+          style={{
+            width: `${grapheme.cells}ch`,
+            opacity: run.invisible ? 0 : run.dim ? 0.65 : 1,
+          }}
         >
-          {g}
+          <TerminalVectorGlyph glyph={grapheme.text} />
+          {!VECTOR_GLYPHS.has(grapheme.text) && grapheme.text}
         </span>
       ))}
     </span>
@@ -185,7 +284,7 @@ export function ListingPreview({
   const source = frames ? frames[frame % frames.length] : previewAnsi;
   if (!source) {
     return (
-      <div className={cn("font-mono text-[13px] opacity-50", className)}>
+      <div className={cn("font-terminal text-[13px] opacity-50", className)}>
         (no preview)
       </div>
     );
@@ -212,7 +311,7 @@ export function ListingPreview({
             <div
               key={li}
               className={cn(
-                "flex w-max items-center font-mono text-[13px]",
+                "font-terminal flex w-max items-center text-[13px]",
                 multiline ? undefined : "h-[1.9em]",
               )}
               style={rowStyle}
@@ -231,7 +330,7 @@ export function ListingPreview({
 /** Claude Code chrome around a preview. Pure markup. */
 export function CcFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 px-4 pt-3 pb-3 font-mono text-[13px]">
+    <div className="font-terminal flex flex-col gap-2 px-4 pt-3 pb-3 text-[13px]">
       <div
         className="flex items-center gap-1.5"
         style={{ color: "var(--term-muted)" }}
