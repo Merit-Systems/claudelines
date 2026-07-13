@@ -126,6 +126,11 @@ audit used at registration and stamps the verdict, summary, and capabilities
 on the listing. An audit that **rejects delists the script**. The fee bought
 the analysis and is not refunded regardless of verdict.
 
+**Not sure which wallet you're signing with?** \`POST ${base}/api/whoami\`
+(SIWX-signed, free) echoes the wallet your signature proves and its verified
+X identity, if any. Useful before publishing: that wallet becomes the payout
+target and authorship anchor.
+
 **Optional identity**: listings show "anonymous" until the wallet connects an
 X account — \`POST ${base}/api/identity/connect\` (SIWX-signed, free, no body)
 returns an \`authorizeUrl\`. Give it to the user to open in a browser; signing

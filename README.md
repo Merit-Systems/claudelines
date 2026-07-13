@@ -89,6 +89,7 @@ The install flow tells the user or agent to:
 | `POST` | `/api/submit` | None | Publish free without a wallet (unaudited) |
 | `POST` | `/api/audit` | $0.15 / $0.50 | Fund an LLM audit (first / re-audit) |
 | `POST` | `/api/identity/connect` | SIWX | Start X account verification |
+| `POST` | `/api/whoami` | SIWX | Echo the signing wallet and its identity |
 | `POST` | `/api/report` | SIWX | Submit a review or report |
 | `GET` | `/api/statuslines/{slug}/feedback` | None | Get reviews and reports |
 
