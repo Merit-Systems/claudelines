@@ -29,7 +29,7 @@ export default function SubmitPage() {
           },
           {
             label: "No wallet? Publish free (unaudited)",
-            text: `Publish my current Claude Code statusline to ${base} without a wallet. Fetch ${base}/skill.md and follow its publish steps: read the statusLine command from ~/.claude/settings.json, capture a preview with echo '{}' | COLUMNS=80 <that command>, sanitize any personal data, confirm the listing details with me, then POST /api/submit (plain HTTP, free, no payment) with the script, previewAnsi, name/description, and tags. Warn me first: the listing will be marked UNAUDITED, has no owner, and is always free until someone funds its $0.15 audit.`,
+            text: `Publish my current Claude Code statusline to ${base} without a wallet. Fetch ${base}/skill.md and follow its publish steps: read the statusLine command from ~/.claude/settings.json, capture a preview with echo '{}' | COLUMNS=120 <that command>, sanitize any personal data, confirm the listing details with me, then POST /api/submit (plain HTTP, free, no payment) with the script, previewAnsi, name/description, and tags. Warn me first: the listing will be marked UNAUDITED, has no owner, and is always free until someone funds its $0.15 audit.`,
           },
         ]}
         manual={[

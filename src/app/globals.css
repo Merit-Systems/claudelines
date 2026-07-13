@@ -32,6 +32,8 @@
   --radius-4xl: calc(var(--radius) * 2.6);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-terminal: "JetBrains Mono", "Symbols Nerd Font Mono",
+    "Apple Color Emoji", "Segoe UI Emoji", monospace;
 }
 
 :root {

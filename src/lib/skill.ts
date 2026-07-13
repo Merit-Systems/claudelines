@@ -62,13 +62,14 @@ rejects. Follow these steps exactly:
 
 1. **Locate** — read \`statusLine.command\` from \`~/.claude/settings.json\` and
    publish that script as-is. Do not browse for or install a different one.
-2. **Capture a preview** — \`echo '{}' | COLUMNS=80 <command> > preview.ansi\`.
-   Previews render at their captured width and many viewers are on phones —
-   capture at the narrowest COLUMNS your layout still looks good at (60–100;
-   wider captures get scaled down or scrolled on small screens).
+2. **Capture a preview** — \`echo '{}' | COLUMNS=120 <command> > preview.ansi\`.
+   ClaudeLines uses a canonical 120-column terminal so the browser, social
+   image, and original terminal receive the same layout input. Scripts should
+   still respect \`COLUMNS\`; output wider than 120 columns is preserved and
+   scaled or scrolled on small screens.
    Animated statuslines can also ship \`previewFrames\` (played on the site at
    1 fps): capture the same command once per second —
-   \`for i in $(seq 0 19); do echo '{}' | COLUMNS=80 <command>; printf '\\0'; sleep 1; done > frames.raw\`
+   \`for i in $(seq 0 19); do echo '{}' | COLUMNS=120 <command>; printf '\\0'; sleep 1; done > frames.raw\`
    then \`jq -Rs 'split("\\u0000") | map(select(length>0))' frames.raw > frames.json\`
    (2–30 frames, ≤8 KB each, 64 KB total; frame 0 doubles as the still).
 3. **Sanitize** — the capture runs the real script, so it can embed live
