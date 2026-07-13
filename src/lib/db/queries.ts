@@ -44,6 +44,12 @@ const authorJoin = and(
   eq(identities.verified, true),
 );
 
+/** Publicly listable: neither moderation-hidden nor owner-archived. */
+const visible = and(
+  eq(statuslines.hidden, false),
+  eq(statuslines.archived, false),
+);
+
 export async function listStatuslines(
   opts: {
     q?: string;
@@ -69,14 +75,14 @@ export async function listStatuslines(
     .where(
       q
         ? and(
-            eq(statuslines.hidden, false),
+            visible,
             or(
               ilike(statuslines.name, `%${q}%`),
               ilike(statuslines.description, `%${q}%`),
               ilike(statuslines.slug, `%${q}%`),
             ),
           )
-        : eq(statuslines.hidden, false),
+        : visible,
     )
     .orderBy(order, desc(statuslines.createdAt))
     .limit(limit);
@@ -99,7 +105,7 @@ export async function getFeatured(limit = 4): Promise<StatuslineWithAuthor[]> {
     .select(withAuthor)
     .from(statuslines)
     .leftJoin(identities, authorJoin)
-    .where(eq(statuslines.hidden, false))
+    .where(visible)
     .orderBy(desc(statuslines.featured), desc(statuslines.installs))
     .limit(limit);
 }
@@ -309,12 +315,7 @@ export async function listByWallet(
     .select(withAuthor)
     .from(statuslines)
     .leftJoin(identities, authorJoin)
-    .where(
-      and(
-        eq(statuslines.authorWallet, wallet.toLowerCase()),
-        eq(statuslines.hidden, false),
-      ),
-    )
+    .where(and(eq(statuslines.authorWallet, wallet.toLowerCase()), visible))
     .orderBy(desc(statuslines.installs), desc(statuslines.createdAt));
 }
 
@@ -403,6 +404,17 @@ export async function setHidden(slug: string, hidden: boolean): Promise<void> {
   await db()
     .update(statuslines)
     .set({ hidden })
+    .where(eq(statuslines.slug, slug));
+}
+
+/** Owner archive / unarchive. Never touches the moderation `hidden` flag. */
+export async function setArchived(
+  slug: string,
+  archived: boolean,
+): Promise<void> {
+  await db()
+    .update(statuslines)
+    .set({ archived })
     .where(eq(statuslines.slug, slug));
 }
 

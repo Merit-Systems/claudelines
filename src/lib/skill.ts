@@ -125,7 +125,7 @@ Trade-offs, which you must tell the user before submitting:
 - **No security audit** — the listing carries a prominent UNAUDITED warning.
   Only the deterministic scanner runs; high-severity hits are rejected.
 - **No owner** — authorship can't be claimed, the preview can't be updated,
-  and it can never be sold.
+  it can't be archived, and it can never be sold.
 - Rate-limited to a few submissions per caller per day.
 
 ## Fund an audit on any listing
@@ -167,6 +167,15 @@ reviewed). Outcomes:
   installs, sales, and feedback carry over.
 - \`updated: false, verdict: "reject"\` — nothing changed: the existing
   listing stays live exactly as it was, and the fee bought the audit.
+
+## Archive (delist) your listing
+
+The publishing wallet can take its own listing down — and bring it back — at
+any time. Free SIWX-signed \`POST ${base}/api/statuslines/{slug}/archive\` with
+\`{"archived": true}\` to delist or \`{"archived": false}\` to relist. Archived
+listings disappear from browsing, installs, and purchases, but the slug stays
+reserved for the owner. Archiving is independent of moderation: it cannot
+restore a listing delisted by an audit reject, community reports, or an admin.
 
 ## Feedback
 

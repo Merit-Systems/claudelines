@@ -55,8 +55,13 @@ export const statuslines = pgTable("statuslines", {
   auditModel: text("audit_model"),
   /** Deterministic red-flag scanner hits recorded at registration. */
   redFlags: text("red_flags").array().notNull().default([]),
-  /** Delisted: hidden from all public reads and payload/download endpoints. */
+  /** Delisted by moderation (admin, audit reject, report threshold): hidden
+   *  from all public reads and payload/download endpoints. Owners cannot
+   *  clear this flag. */
   hidden: boolean("hidden").notNull().default(false),
+  /** Delisted by the owner. Same public effect as hidden, but freely
+   *  reversible by the owning wallet; the slug stays reserved. */
+  archived: boolean("archived").notNull().default(false),
   /** Community report tally; a threshold auto-hides pending human review. */
   reportCount: integer("report_count").notNull().default(0),
   tags: text("tags").array().notNull().default([]),
