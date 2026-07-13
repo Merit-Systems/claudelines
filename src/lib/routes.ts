@@ -880,6 +880,24 @@ router
     return { verified: true, handle: identity.twitterHandle };
   });
 
+router
+  .route({ path: "whoami", method: "POST" })
+  .siwx()
+  .description(
+    "Echo the wallet your SIWX signature proves, plus its verified X identity if connected. Free. Lets an agent confirm which wallet it is signing with before publishing or claiming.",
+  )
+  .handler(async ({ wallet }) => {
+    if (!wallet) throw new HttpError("Wallet identity required", 401);
+    const identity = await getIdentity(wallet);
+    return {
+      wallet: wallet.toLowerCase(),
+      identity:
+        identity?.verified && identity.twitterHandle
+          ? { handle: identity.twitterHandle }
+          : null,
+    };
+  });
+
 // --- Report & takedown -------------------------------------------------------
 
 router
