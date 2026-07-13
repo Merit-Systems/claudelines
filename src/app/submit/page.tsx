@@ -25,17 +25,17 @@ export default function SubmitPage() {
         agent={[
           {
             label: "Publish your current statusline ($0.15)",
-            text: `Publish my current Claude Code statusline to ${base}. Fetch ${base}/skill.md and follow its publish steps: read the statusLine command from ~/.claude/settings.json, capture a preview with echo '{}' | COLUMNS=120 <that command>, sanitize any personal data out of the preview, confirm the listing details with me, then POST /api/register ($0.15 via x402/MPP) with the script, previewAnsi, name/description, and my price (or "0" for free). Sales pay the wallet that registers.`,
+            text: `Publish my current Claude Code statusline to ${base}. Fetch ${base}/skill.md and follow its publish steps: read the statusLine command from ~/.claude/settings.json, capture a preview at my current terminal width (use COLUMNS when set, otherwise tput cols, with 120 only as a non-TTY fallback), sanitize any personal data out of the preview, confirm the listing details with me, then POST /api/register ($0.15 via x402/MPP) with the script, previewAnsi, name/description, and my price (or "0" for free). Sales pay the wallet that registers.`,
           },
           {
             label: "No wallet? Publish free (unaudited)",
-            text: `Publish my current Claude Code statusline to ${base} without a wallet. Fetch ${base}/skill.md and follow its publish steps: read the statusLine command from ~/.claude/settings.json, capture a preview with echo '{}' | COLUMNS=120 <that command>, sanitize any personal data, confirm the listing details with me, then POST /api/submit (plain HTTP, free, no payment) with the script, previewAnsi, name/description, and tags. Warn me first: the listing will be marked UNAUDITED, has no owner, and is always free until someone funds its $0.15 audit.`,
+            text: `Publish my current Claude Code statusline to ${base} without a wallet. Fetch ${base}/skill.md and follow its publish steps: read the statusLine command from ~/.claude/settings.json, capture a preview at my current terminal width (use COLUMNS when set, otherwise tput cols, with 120 only as a non-TTY fallback), sanitize any personal data, confirm the listing details with me, then POST /api/submit (plain HTTP, free, no payment) with the script, previewAnsi, name/description, and tags. Warn me first: the listing will be marked UNAUDITED, has no owner, and is always free until someone funds its $0.15 audit.`,
           },
         ]}
         manual={[
           {
             label: "Register with the agentcash CLI",
-            text: `# capture a preview of your current statusline\nPREVIEW=$(echo '{}' | COLUMNS=120 ~/.claude/statusline.sh)\n\n# upload it ($0.15 — funds the security audit; authorship comes from your wallet's verified X identity)\nnpx agentcash@latest fetch ${base}/api/register -m POST -b "$(jq -n \\\n  --rawfile script ~/.claude/statusline.sh --arg preview \"$PREVIEW\" \\\n  '{slug: \"my-statusline\", name: \"My Statusline\", description: \"...\", script: $script, previewAnsi: $preview, priceUsd: \"0\", tags: []}')"`,
+            text: `# capture at the current terminal width; 120 is only a non-TTY fallback\nPREVIEW_COLUMNS="\${COLUMNS:-$(tput cols 2>/dev/null || printf 120)}"\nPREVIEW=$(echo '{}' | COLUMNS="$PREVIEW_COLUMNS" ~/.claude/statusline.sh)\n\n# upload it ($0.15 — funds the security audit; authorship comes from your wallet's verified X identity)\nnpx agentcash@latest fetch ${base}/api/register -m POST -b "$(jq -n \\\n  --rawfile script ~/.claude/statusline.sh --arg preview \"$PREVIEW\" \\\n  '{slug: \"my-statusline\", name: \"My Statusline\", description: \"...\", script: $script, previewAnsi: $preview, priceUsd: \"0\", tags: []}')"`,
           },
         ]}
       />

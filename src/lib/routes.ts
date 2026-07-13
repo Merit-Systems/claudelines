@@ -464,7 +464,7 @@ const registerBody = z.object({
     .max(32_768)
     .refine((v) => !v.includes("\u0000"), { message: "Binary not allowed" })
     .meta({ example: registerExample.script }),
-  /** Captured sample output for the preview (echo '{}' | COLUMNS=120 <script>). */
+  /** Sample output captured at the publisher's current terminal width. */
   previewAnsi: previewAnsiSchema.meta({ example: registerExample.previewAnsi }),
   /** Optional 1 fps animation: the same capture repeated on successive seconds. */
   previewFrames: previewFramesSchema.optional(),
