@@ -1,6 +1,4 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 
 import {
   parseAnsi,
@@ -17,19 +15,6 @@ export const socialImageSize = {
   width: 1200,
   height: 630,
 };
-
-const monoFont = readFile(
-  join(
-    process.cwd(),
-    "node_modules/@fontsource/dejavu-mono/files/dejavu-mono-latin-400-normal.woff",
-  ),
-);
-const geistFont = readFile(
-  join(
-    process.cwd(),
-    "node_modules/next/dist/compiled/@vercel/og/Geist-Regular.ttf",
-  ),
-);
 
 const terminal = {
   background: "#171717",
@@ -72,7 +57,7 @@ function PreviewRun({
             flexShrink: 0,
             alignItems: "center",
             justifyContent: "center",
-            fontFamily: "DejaVu Mono",
+            fontFamily: "monospace",
             fontSize,
             lineHeight: 1,
             whiteSpace: "pre",
@@ -167,12 +152,8 @@ function ClaudeMark() {
   );
 }
 
-export async function createStatuslineSocialImage(row: StatuslineWithAuthor) {
+export function createStatuslineSocialImage(row: StatuslineWithAuthor) {
   const preview = row.previewFrames?.[0] ?? row.previewAnsi;
-  const [monoFontData, geistFontData] = await Promise.all([
-    monoFont,
-    geistFont,
-  ]);
 
   return new ImageResponse(
     (
@@ -185,7 +166,7 @@ export async function createStatuslineSocialImage(row: StatuslineWithAuthor) {
           padding: "46px 56px",
           color: "#171717",
           backgroundColor: "#f8f7f5",
-          fontFamily: "geist",
+          fontFamily: "sans-serif",
         }}
       >
         <div
@@ -271,7 +252,7 @@ export async function createStatuslineSocialImage(row: StatuslineWithAuthor) {
               alignItems: "center",
               gap: 9,
               color: terminal.muted,
-              fontFamily: "DejaVu Mono",
+              fontFamily: "monospace",
               fontSize: 17,
             }}
           >
@@ -287,7 +268,7 @@ export async function createStatuslineSocialImage(row: StatuslineWithAuthor) {
               gap: 12,
               padding: "0 15px",
               border: `1px solid ${terminal.border}`,
-              fontFamily: "DejaVu Mono",
+              fontFamily: "monospace",
               fontSize: 18,
             }}
           >
@@ -318,7 +299,7 @@ export async function createStatuslineSocialImage(row: StatuslineWithAuthor) {
               alignItems: "center",
               gap: 28,
               color: terminal.dim,
-              fontFamily: "DejaVu Mono",
+              fontFamily: "monospace",
               fontSize: 14,
             }}
           >
@@ -328,34 +309,6 @@ export async function createStatuslineSocialImage(row: StatuslineWithAuthor) {
         </div>
       </div>
     ),
-    {
-      ...socialImageSize,
-      fonts: [
-        {
-          name: "geist",
-          data: geistFontData,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "geist",
-          data: geistFontData,
-          style: "normal",
-          weight: 700,
-        },
-        {
-          name: "DejaVu Mono",
-          data: monoFontData,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "DejaVu Mono",
-          data: monoFontData,
-          style: "normal",
-          weight: 700,
-        },
-      ],
-    },
+    socialImageSize,
   );
 }
