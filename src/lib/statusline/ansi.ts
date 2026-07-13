@@ -36,6 +36,19 @@ export interface TerminalPalette {
   colors: readonly string[];
 }
 
+/** The canonical ClaudeLines terminal palette. Browser previews and generated
+ * social images both consume this object so named ANSI colors cannot drift. */
+export const CANONICAL_DARK_TERMINAL_PALETTE = {
+  background: "#171717",
+  foreground: "#d4d4d4",
+  colors: [
+    "#0d0d0d", "#e5484d", "#46a758", "#d4a72c",
+    "#3e63dd", "#8e4ec6", "#12a594", "#d4d4d4",
+    "#737373", "#ff6369", "#63c174", "#f0c000",
+    "#849dff", "#bf7af0", "#0ac5b3", "#ffffff",
+  ],
+} as const satisfies TerminalPalette;
+
 const MAX_PREVIEW_BYTES = 8_192;
 const MAX_PREVIEW_ROWS = 64;
 const TAB_WIDTH = 8;

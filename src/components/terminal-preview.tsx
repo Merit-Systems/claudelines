@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  CANONICAL_DARK_TERMINAL_PALETTE,
   parseAnsi,
   terminalCellWidth,
   terminalColorCss,
@@ -18,13 +19,6 @@ import { cn } from "@/lib/utils";
  * ship previewFrames play them client-side at 1 fps (the statusline's own
  * refresh cadence): a flipbook of parsed text, still nothing executing.
  */
-
-const DARK_ANSI = [
-  "#0d0d0d", "#e5484d", "#46a758", "#d4a72c",
-  "#3e63dd", "#8e4ec6", "#12a594", "#d4d4d4",
-  "#737373", "#ff6369", "#63c174", "#f0c000",
-  "#849dff", "#bf7af0", "#0ac5b3", "#ffffff",
-] as const;
 
 const LIGHT_ANSI = [
   "#171717", "#c01c28", "#26a269", "#a2734c",
@@ -42,13 +36,13 @@ function ansiVariables(colors: readonly string[]) {
 /** Terminal palettes as CSS custom properties, toggled client-side. */
 export const TERM_THEMES = {
   dark: {
-    "--term-bg": "#1a1a1a",
-    "--term-fg": "#d4d4d4",
+    "--term-bg": CANONICAL_DARK_TERMINAL_PALETTE.background,
+    "--term-fg": CANONICAL_DARK_TERMINAL_PALETTE.foreground,
     "--term-muted": "#525252",
     "--term-border": "#333333",
     "--term-dim": "#3f3f3f",
     "--term-cursor": "#a3a3a3",
-    ...ansiVariables(DARK_ANSI),
+    ...ansiVariables(CANONICAL_DARK_TERMINAL_PALETTE.colors),
   },
   light: {
     "--term-bg": "#ffffff",

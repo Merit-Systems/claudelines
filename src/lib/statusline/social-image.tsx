@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
+  CANONICAL_DARK_TERMINAL_PALETTE,
   parseAnsi,
   terminalCellWidth,
   terminalColorHex,
@@ -21,24 +22,15 @@ export const socialImageSize = {
 };
 
 const terminal = {
-  background: "#171717",
-  foreground: "#d4d4d4",
+  background: CANONICAL_DARK_TERMINAL_PALETTE.background,
+  foreground: CANONICAL_DARK_TERMINAL_PALETTE.foreground,
   muted: "#737373",
   border: "#383838",
   dim: "#525252",
   cursor: "#a3a3a3",
 };
 
-const socialPalette: TerminalPalette = {
-  foreground: terminal.foreground,
-  background: terminal.background,
-  colors: [
-    "#0d0d0d", "#e5484d", "#46a758", "#d4a72c",
-    "#3e63dd", "#8e4ec6", "#12a594", "#d4d4d4",
-    "#737373", "#ff6369", "#63c174", "#f0c000",
-    "#849dff", "#bf7af0", "#0ac5b3", "#ffffff",
-  ],
-};
+const socialPalette: TerminalPalette = CANONICAL_DARK_TERMINAL_PALETTE;
 
 const TERMINAL_SYMBOL = /[\u2190-\u2bff]/u;
 
