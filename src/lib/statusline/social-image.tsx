@@ -111,6 +111,65 @@ function VectorGlyph({
 }
 
 const VECTOR_GLYPHS = new Set(["⬢", "◆", "⟐", "↳", "█", "▀", "▄"]);
+const BLOCK_GLYPHS = new Set(["█", "▀", "▄"]);
+
+function runColors(run: StyledRun) {
+  const foreground = run.inverse
+    ? terminalColorHex(run.bg, socialPalette, "background")
+    : terminalColorHex(run.fg, socialPalette, "foreground");
+  const background = run.inverse
+    ? terminalColorHex(run.fg, socialPalette, "foreground")
+    : run.bg
+      ? terminalColorHex(run.bg, socialPalette, "background")
+      : null;
+
+  return { foreground, background };
+}
+
+/** Dense truecolor art can contain hundreds of one-cell SGR runs. Passing each
+ * cell through Satori as a div + nested svg makes a social card take tens of
+ * seconds on a serverless CPU. When a capture is purely terminal block art,
+ * collapse the whole grid into one data-URI SVG image instead. This preserves
+ * the exact foreground/background half-cells while leaving mixed text and
+ * symbols on the normal font renderer. */
+export function blockArtSvgDataUri(lines: StyledRun[][]): string | null {
+  const rows: string[] = [];
+  let maxCells = 0;
+
+  for (let row = 0; row < lines.length; row++) {
+    let column = 0;
+    for (const run of lines[row]) {
+      const { foreground, background } = runColors(run);
+      for (const grapheme of terminalGraphemes(run.text)) {
+        if (grapheme.cells !== 1) return null;
+        const glyph = grapheme.text;
+        if (!BLOCK_GLYPHS.has(glyph) && !/^\s$/u.test(glyph)) return null;
+
+        if (background) {
+          rows.push(
+            `<rect x="${column}" y="${row}" width="1" height="1" fill="${background}"/>`,
+          );
+        }
+        if (BLOCK_GLYPHS.has(glyph) && !run.invisible) {
+          const y = glyph === "▄" ? row + 0.5 : row;
+          const height = glyph === "█" ? 1 : 0.5;
+          const opacity = run.dim ? ' fill-opacity="0.65"' : "";
+          rows.push(
+            `<rect x="${column}" y="${y}" width="1" height="${height}" fill="${foreground}"${opacity}/>`
+          );
+        }
+        column += 1;
+      }
+    }
+    maxCells = Math.max(maxCells, column);
+  }
+
+  if (!rows.length || maxCells === 0) return null;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${maxCells}" height="${lines.length}" viewBox="0 0 ${maxCells} ${lines.length}" ` +
+    `preserveAspectRatio="none" shape-rendering="crispEdges">${rows.join("")}</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
 
 const terminalFontFiles = [
   {
@@ -175,14 +234,7 @@ function PreviewRun({
   rowHeight: number;
   run: StyledRun;
 }) {
-  const foreground = run.inverse
-    ? terminalColorHex(run.bg, socialPalette, "background")
-    : terminalColorHex(run.fg, socialPalette, "foreground");
-  const background = run.inverse
-    ? terminalColorHex(run.fg, socialPalette, "foreground")
-    : run.bg
-      ? terminalColorHex(run.bg, socialPalette, "background")
-      : "transparent";
+  const { foreground, background } = runColors(run);
   const textDecoration = [
     run.underline ? "underline" : "",
     run.strikethrough ? "line-through" : "",
@@ -194,7 +246,7 @@ function PreviewRun({
         display: "flex",
         height: rowHeight,
         color: foreground,
-        backgroundColor: background,
+        backgroundColor: background ?? "transparent",
         fontWeight: run.bold ? 700 : 400,
         fontStyle: run.italic ? "italic" : "normal",
         textDecoration,
@@ -257,6 +309,7 @@ function StatuslinePreview({
   const heightFitFontSize = availableHeight / (lines.length * 1.24);
   const fontSize = Math.min(21, widthFitFontSize, heightFitFontSize);
   const rowHeight = fontSize * 1.24;
+  const blockArt = blockArtSvgDataUri(lines);
 
   return (
     <div
@@ -269,28 +322,45 @@ function StatuslinePreview({
         overflow: "hidden",
       }}
     >
-      {lines.map((runs, lineIndex) => (
-        <div
-          key={lineIndex}
+      {blockArt ? (
+        // ImageResponse needs a raw data-URI image here; next/image cannot
+        // participate in its server-side SVG render pipeline.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt=""
+          src={blockArt}
+          width={cellWidth * maxCells}
+          height={rowHeight * lines.length}
           style={{
-            display: "flex",
-            width: "100%",
-            height: rowHeight,
-            alignItems: "center",
+            width: cellWidth * maxCells,
+            height: rowHeight * lines.length,
+            flexShrink: 0,
           }}
-        >
-          {runs.map((run, runIndex) => (
-            <PreviewRun
-              key={runIndex}
-              cellWidth={cellWidth}
-              fontFamily={fontFamily}
-              fontSize={fontSize}
-              rowHeight={rowHeight}
-              run={run}
-            />
-          ))}
-        </div>
-      ))}
+        />
+      ) : (
+        lines.map((runs, lineIndex) => (
+          <div
+            key={lineIndex}
+            style={{
+              display: "flex",
+              width: "100%",
+              height: rowHeight,
+              alignItems: "center",
+            }}
+          >
+            {runs.map((run, runIndex) => (
+              <PreviewRun
+                key={runIndex}
+                cellWidth={cellWidth}
+                fontFamily={fontFamily}
+                fontSize={fontSize}
+                rowHeight={rowHeight}
+                run={run}
+              />
+            ))}
+          </div>
+        ))
+      )}
     </div>
   );
 }
