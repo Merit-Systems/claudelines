@@ -126,15 +126,46 @@ function runColors(run: StyledRun) {
   return { foreground, background };
 }
 
+interface BlockArtRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  opacity?: number;
+}
+
+export interface BlockArtGrid {
+  width: number;
+  height: number;
+  rects: BlockArtRect[];
+}
+
 /** Dense truecolor art can contain hundreds of one-cell SGR runs. Passing each
  * cell through Satori as a div + nested svg makes a social card take tens of
  * seconds on a serverless CPU. When a capture is purely terminal block art,
- * collapse the whole grid into one data-URI SVG image instead. This preserves
- * the exact foreground/background half-cells while leaving mixed text and
- * symbols on the normal font renderer. */
-export function blockArtSvgDataUri(lines: StyledRun[][]): string | null {
-  const rows: string[] = [];
+ * collapse the whole grid into one SVG instead. This preserves the exact
+ * foreground/background half-cells while leaving mixed text and symbols on
+ * the normal font renderer. */
+export function blockArtGrid(lines: StyledRun[][]): BlockArtGrid | null {
+  const rects: BlockArtRect[] = [];
   let maxCells = 0;
+
+  const addRect = (rect: BlockArtRect) => {
+    const previous = rects.at(-1);
+    if (
+      previous &&
+      previous.y === rect.y &&
+      previous.height === rect.height &&
+      previous.fill === rect.fill &&
+      previous.opacity === rect.opacity &&
+      previous.x + previous.width === rect.x
+    ) {
+      previous.width += rect.width;
+    } else {
+      rects.push(rect);
+    }
+  };
 
   for (let row = 0; row < lines.length; row++) {
     let column = 0;
@@ -145,18 +176,24 @@ export function blockArtSvgDataUri(lines: StyledRun[][]): string | null {
         const glyph = grapheme.text;
         if (!BLOCK_GLYPHS.has(glyph) && !/^\s$/u.test(glyph)) return null;
 
-        if (background) {
-          rows.push(
-            `<rect x="${column}" y="${row}" width="1" height="1" fill="${background}"/>`,
-          );
+        if (background && glyph !== "█") {
+          addRect({
+            x: column,
+            y: glyph === "▀" ? row + 0.5 : row,
+            width: 1,
+            height: BLOCK_GLYPHS.has(glyph) ? 0.5 : 1,
+            fill: background,
+          });
         }
         if (BLOCK_GLYPHS.has(glyph) && !run.invisible) {
-          const y = glyph === "▄" ? row + 0.5 : row;
-          const height = glyph === "█" ? 1 : 0.5;
-          const opacity = run.dim ? ' fill-opacity="0.65"' : "";
-          rows.push(
-            `<rect x="${column}" y="${y}" width="1" height="${height}" fill="${foreground}"${opacity}/>`
-          );
+          addRect({
+            x: column,
+            y: glyph === "▄" ? row + 0.5 : row,
+            width: 1,
+            height: glyph === "█" ? 1 : 0.5,
+            fill: foreground,
+            opacity: run.dim ? 0.65 : undefined,
+          });
         }
         column += 1;
       }
@@ -164,11 +201,8 @@ export function blockArtSvgDataUri(lines: StyledRun[][]): string | null {
     maxCells = Math.max(maxCells, column);
   }
 
-  if (!rows.length || maxCells === 0) return null;
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${maxCells}" height="${lines.length}" viewBox="0 0 ${maxCells} ${lines.length}" ` +
-    `preserveAspectRatio="none" shape-rendering="crispEdges">${rows.join("")}</svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  if (!rects.length || maxCells === 0) return null;
+  return { width: maxCells, height: lines.length, rects };
 }
 
 const terminalFontFiles = [
@@ -309,7 +343,7 @@ function StatuslinePreview({
   const heightFitFontSize = availableHeight / (lines.length * 1.24);
   const fontSize = Math.min(21, widthFitFontSize, heightFitFontSize);
   const rowHeight = fontSize * 1.24;
-  const blockArt = blockArtSvgDataUri(lines);
+  const blockArt = blockArtGrid(lines);
 
   return (
     <div
@@ -323,20 +357,30 @@ function StatuslinePreview({
       }}
     >
       {blockArt ? (
-        // ImageResponse needs a raw data-URI image here; next/image cannot
-        // participate in its server-side SVG render pipeline.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          alt=""
-          src={blockArt}
+        <svg
           width={cellWidth * maxCells}
           height={rowHeight * lines.length}
+          viewBox={`0 0 ${blockArt.width} ${blockArt.height}`}
+          preserveAspectRatio="none"
+          shapeRendering="crispEdges"
           style={{
             width: cellWidth * maxCells,
             height: rowHeight * lines.length,
             flexShrink: 0,
           }}
-        />
+        >
+          {blockArt.rects.map((rect, index) => (
+            <rect
+              key={index}
+              x={rect.x}
+              y={rect.y}
+              width={rect.width}
+              height={rect.height}
+              fill={rect.fill}
+              fillOpacity={rect.opacity}
+            />
+          ))}
+        </svg>
       ) : (
         lines.map((runs, lineIndex) => (
           <div
