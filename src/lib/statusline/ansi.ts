@@ -49,7 +49,8 @@ export const CANONICAL_DARK_TERMINAL_PALETTE = {
   ],
 } as const satisfies TerminalPalette;
 
-const MAX_PREVIEW_BYTES = 8_192;
+export const MAX_PREVIEW_LENGTH = 65_536;
+export const MAX_PREVIEW_FRAMES_LENGTH = 524_288;
 const MAX_PREVIEW_ROWS = 64;
 const TAB_WIDTH = 8;
 
@@ -280,7 +281,7 @@ function appendText(
 /** Lines of terminal-styled runs from captured ANSI. All real captured rows are
  * retained (up to a defensive 64-row ceiling); no content is executed. */
 export function parseAnsi(raw: string): StyledRun[][] {
-  const input = raw.slice(0, MAX_PREVIEW_BYTES);
+  const input = raw.slice(0, MAX_PREVIEW_LENGTH);
   const lines: StyledRun[][] = [];
   let state: State = {};
 

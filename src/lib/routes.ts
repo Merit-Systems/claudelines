@@ -20,10 +20,10 @@ import { router } from "./router";
 import { siteUrl } from "./site";
 import { detectCapabilities } from "./statusline/capabilities";
 import {
-  hasHighSeverity,
-  scanRedFlags,
-  type RedFlag,
-} from "./statusline/redflags";
+  MAX_PREVIEW_FRAMES_LENGTH,
+  MAX_PREVIEW_LENGTH,
+} from "./statusline/ansi";
+import { hasHighSeverity, scanRedFlags, type RedFlag } from "./statusline/redflags";
 import { auditAvailable, auditScript } from "./statusline/audit";
 import { getIdentity, oauthConfigured, startClaim } from "./identity";
 import {
@@ -67,7 +67,7 @@ const priceString = z
   .string()
   .regex(/^\d{1,9}(\.\d{1,6})?$/, 'Decimal USD string, e.g. "0.05"');
 
-const previewAnsiSchema = z.string().min(1).max(8_192);
+const previewAnsiSchema = z.string().min(1).max(MAX_PREVIEW_LENGTH);
 
 /** The statusline script, uploaded as-is. Shared by register and update. */
 const scriptSchema = z
@@ -116,9 +116,12 @@ const previewFramesSchema = z
   .array(previewAnsiSchema)
   .min(2)
   .max(30)
-  .refine((frames) => frames.reduce((n, f) => n + f.length, 0) <= 65_536, {
-    message: "Frames exceed 64 KB total",
-  });
+  .refine(
+    (frames) =>
+      frames.reduce((n, f) => n + f.length, 0) <=
+      MAX_PREVIEW_FRAMES_LENGTH,
+    { message: "Frames exceed 512 KB total" },
+  );
 
 /** Integrity hash surfaced everywhere the script is. Lets installers verify
  *  the saved bytes and fail loudly on transfer corruption (e.g. a script
@@ -381,7 +384,7 @@ router
   )
   .inputExample({ previewAnsi: "Neon Nights ~/project $1.42" })
   .description(
-    "Replace a listing's captured ANSI preview and/or its 1 fps animation frames (successive captures, ≤30 × ≤8 KB, 64 KB total). Free and restricted to the wallet that published the listing. This does not change or rerun the script.",
+    "Replace a listing's captured ANSI preview and/or its 1 fps animation frames (successive captures, ≤30 × ≤64 KB, 512 KB total). Free and restricted to the wallet that published the listing. This does not change or rerun the script.",
   )
   .handler(async ({ params, body, wallet }) => {
     if (!wallet) throw new HttpError("Wallet identity required", 401);
@@ -1284,6 +1287,117 @@ router
   .handler(async ({ body }) => {
     await setHidden(body.slug, body.hidden);
     return { slug: body.slug, hidden: body.hidden };
+  });
+
+router
+  .route({ path: "admin/register", method: "POST" })
+  .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
+  .body(
+    registerBody.extend({
+      /** Authorship anchor for the listing, since there is no paying wallet
+       *  on this path. Same lowercasing and identity derivation as register. */
+      authorWallet: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+    }),
+  )
+  .description(
+    "Admin: publish a listing through the exact register pipeline — slug check, LLM audit, red-flag backstop, capability detection — but authenticated by ADMIN_TOKEN instead of an x402 payment, with authorship assigned to authorWallet. Exists so the operator can upload large scripts/previews straight from disk instead of through an agent context. Rejected scripts are still not listed.",
+  )
+  .validate(async (body) => {
+    if (!auditAvailable()) {
+      throw new HttpError("Audit service not configured", 503);
+    }
+    if (await slugTaken(body.slug)) {
+      throw new HttpError(`slug "${body.slug}" is already taken`, 409);
+    }
+  })
+  .handler(async ({ body }) => {
+    const wallet = body.authorWallet.toLowerCase();
+    const audit = await auditScript({
+      script: body.script,
+      name: body.name,
+      description: body.description,
+      author: wallet,
+    });
+    const flags = scanRedFlags(body.script);
+    if (audit.verdict === "approve" && hasHighSeverity(flags)) {
+      audit.verdict = "reject";
+      audit.risks = [
+        ...audit.risks,
+        ...flags.filter((f) => f.severity === "high").map((f) => f.label),
+      ];
+    } else if (audit.verdict === "approve" && flags.length > 0) {
+      audit.verdict = "caution";
+    }
+    if (audit.verdict === "reject") {
+      return {
+        listed: false,
+        verdict: "reject",
+        summary: audit.summary,
+        risks: audit.risks,
+        auditedBy: audit.model,
+      };
+    }
+    const row = await createStatusline({
+      slug: body.slug,
+      name: body.name,
+      description: body.description,
+      authorWallet: wallet,
+      priceUsd: Number(body.priceUsd) === 0 ? "0" : body.priceUsd,
+      script: body.script,
+      previewAnsi: body.previewAnsi,
+      previewFrames: body.previewFrames ?? null,
+      capabilities: audit.capabilities.length
+        ? audit.capabilities
+        : detectCapabilities(body.script),
+      auditVerdict: audit.verdict,
+      auditSummary: audit.summary,
+      auditModel: audit.model,
+      redFlags: flags.map((f) => `${f.severity}: ${f.label}`),
+      tags: body.tags,
+      registeredBy: wallet,
+    });
+    return {
+      slug: row.slug,
+      listed: true,
+      url: `${siteUrl()}/statuslines/${row.slug}`,
+      audit: {
+        verdict: audit.verdict,
+        summary: audit.summary,
+        risks: audit.risks,
+        model: audit.model,
+      },
+      capabilities: row.capabilities,
+      priceUsd: row.priceUsd,
+      scriptSha256: sha256Hex(body.script),
+    };
+  });
+
+router
+  .route({ path: "admin/preview", method: "POST" })
+  .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
+  .body(
+    z
+      .object({
+        slug: z.string().regex(SLUG),
+        previewAnsi: previewAnsiSchema.optional(),
+        previewFrames: previewFramesSchema.optional(),
+      })
+      .refine((b) => b.previewAnsi || b.previewFrames, {
+        message: "Provide previewAnsi, previewFrames, or both",
+      }),
+  )
+  .description(
+    "Admin: replace a listing's captured preview and/or animation frames, same semantics as the owner preview route. Previews are inert text the site plays client-side — this never touches the script. Exists so large captures can be uploaded straight from disk instead of through an agent context. Requires ADMIN_TOKEN.",
+  )
+  .handler(async ({ body }) => {
+    const row = await getStatusline(body.slug);
+    if (!row) throw new HttpError("Statusline not found", 404);
+    const previewAnsi = body.previewAnsi ?? body.previewFrames?.[0];
+    await updateStatuslinePreview(row.slug, {
+      previewAnsi,
+      previewFrames: body.previewFrames,
+    });
+    return { slug: row.slug, updated: true };
   });
 
 router

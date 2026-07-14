@@ -82,7 +82,7 @@ rejects. Follow these steps exactly:
    1 fps): capture the same command once per second —
    \`for i in $(seq 0 19); do echo '{}' | COLUMNS="$PREVIEW_COLUMNS" <command>; printf '\\0'; sleep 1; done > frames.raw\`
    then \`jq -Rs 'split("\\u0000") | map(select(length>0))' frames.raw > frames.json\`
-   (2–30 frames, ≤8 KB each, 64 KB total; frame 0 doubles as the still).
+   (2–30 frames, ≤64 KB each, 512 KB total; frame 0 doubles as the still).
 3. **Sanitize** — the capture runs the real script, so it can embed live
    personal data (wallet addresses, balances, home paths, emails). Inspect it
    (\`cat -v preview.ansi\`); if anything leaks, re-capture against mocked data
@@ -101,8 +101,8 @@ npx agentcash@latest fetch ${base}/api/register -m POST \\
 \`\`\`
 
 Fields: \`slug\` lowercase-kebab, ≤48 chars · \`name\` ≤48 · \`description\` ≤280 ·
-\`tags\` ≤5 × ≤24 · \`script\` ≤32 KB · \`previewAnsi\` ≤8 KB · \`previewFrames\`
-optional 2–30 × ≤8 KB (64 KB total) · \`priceUsd\` decimal string ("0" = free;
+\`tags\` ≤5 × ≤24 · \`script\` ≤32 KB · \`previewAnsi\` ≤64 KB · \`previewFrames\`
+optional 2–30 × ≤64 KB (512 KB total) · \`priceUsd\` decimal string ("0" = free;
 otherwise buyers pay the registering wallet directly — that wallet is the
 account and payout target) · \`files\` optional ≤3 companion command files
 \`{path, content}\` where path matches \`commands/<kebab-name>.md\` and content

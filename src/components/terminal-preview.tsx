@@ -214,12 +214,11 @@ export function ListingPreview({
     return () => clearInterval(id);
   }, [frames]);
 
-  // Small screens: captures are often wider than the viewport. All lines
-  // share ONE scroll container (they must pan together — two-line art
-  // desyncs with per-line scrolling), and moderately-wide captures are
-  // scaled down to fit. Below MIN_SCALE text turns unreadable, so we pin
-  // the scale there and let the container scroll the rest.
-  const MIN_SCALE = 0.55;
+  // Fit against the width this preview actually receives. All rows share one
+  // scroll container so multi-line art stays aligned. Once fitting would make
+  // a 15px terminal smaller than 12px, preserve the readable scale and scroll
+  // the remaining width instead of collapsing to a phone-sized thumbnail.
+  const MIN_SCALE = 0.8;
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const maxNaturalW = useRef(0);
@@ -284,7 +283,7 @@ export function ListingPreview({
   const source = frames ? frames[frame % frames.length] : previewAnsi;
   if (!source) {
     return (
-      <div className={cn("font-terminal text-[13px] opacity-50", className)}>
+      <div className={cn("font-terminal text-[15px] opacity-50", className)}>
         (no preview)
       </div>
     );
@@ -304,14 +303,14 @@ export function ListingPreview({
       <div style={fit.height ? { height: fit.height } : undefined}>
         <div
           ref={innerRef}
-          className="flex w-max origin-top-left flex-col"
+          className="font-terminal flex w-max origin-top-left flex-col text-[15px]"
           style={fit.scale < 1 ? { transform: `scale(${fit.scale})` } : undefined}
         >
           {lines.map((runs, li) => (
             <div
               key={li}
               className={cn(
-                "font-terminal flex w-max items-center text-[13px]",
+                "flex w-max items-center",
                 multiline ? undefined : "h-[1.9em]",
               )}
               style={rowStyle}
@@ -330,7 +329,7 @@ export function ListingPreview({
 /** Claude Code chrome around a preview. Pure markup. */
 export function CcFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="font-terminal flex flex-col gap-2 px-4 pt-3 pb-3 text-[13px]">
+    <div className="font-terminal flex flex-col gap-2 px-4 pt-3 pb-3 text-[14px]">
       <div
         className="flex items-center gap-1.5"
         style={{ color: "var(--term-muted)" }}
