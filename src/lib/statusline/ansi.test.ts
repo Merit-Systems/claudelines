@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   parseAnsi,
   terminalCellWidth,
+  terminalColorCss,
   terminalGraphemes,
 } from "./ansi";
 
@@ -91,4 +92,16 @@ test("removes OSC metadata while retaining linked text", () => {
     "\x1b]8;;https://example.com\x07linked\x1b]8;;\x07",
   );
   assert.equal(run.text, "linked");
+});
+
+test("default colors resolve to variables the preview themes define", () => {
+  // TERM_THEMES (terminal-preview.tsx) defines --term-fg / --term-bg. An
+  // emitted name that drifts from those is silently invalid CSS and unstyled
+  // text inherits the page color: black-on-black previews on a light page.
+  assert.equal(terminalColorCss(undefined, "foreground"), "var(--term-fg)");
+  assert.equal(terminalColorCss(undefined, "background"), "var(--term-bg)");
+  assert.equal(
+    terminalColorCss({ kind: "palette", value: 3 }, "foreground"),
+    "var(--term-color-3)",
+  );
 });
