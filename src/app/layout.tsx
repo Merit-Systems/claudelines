@@ -40,11 +40,11 @@ export default function RootLayout({
           <PreviewThemeProvider>
             <div className="flex min-h-svh flex-col">
               <Navbar />
-              <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-12 px-4 py-12">
+              <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-12 px-4 py-12">
                 {children}
               </main>
               <footer className="border-t border-border/40">
-                <div className="text-muted-foreground mx-auto w-full max-w-4xl px-4 py-6 text-center text-[11px] whitespace-nowrap sm:text-xs">
+                <div className="text-muted-foreground mx-auto w-full max-w-6xl px-4 py-6 text-center text-[11px] whitespace-nowrap sm:text-xs">
                   <p>
                     Review scripts before installing.{" "}
                     Our{" "}
