@@ -7,6 +7,8 @@
  * multi-vendor model.
  */
 
+import { analyzePayloads } from "./payloads";
+
 export interface RedFlag {
   severity: "high" | "medium";
   label: string;
@@ -46,7 +48,8 @@ const RULES: { severity: "high" | "medium"; label: string; re: RegExp }[] = [
   {
     severity: "medium",
     label: "network call to a raw IP / non-obvious host",
-    re: /https?:\/\/(\d{1,3}\.){3}\d{1,3}|nc\s+-|ncat\s|\/dev\/tcp\//i,
+    // \b before nc: "openssl enc -base64" must not read as netcat.
+    re: /https?:\/\/(\d{1,3}\.){3}\d{1,3}|\bnc\s+-|\bncat\s|\/dev\/tcp\//i,
   },
   {
     severity: "medium",
@@ -59,6 +62,20 @@ export function scanRedFlags(script: string): RedFlag[] {
   const out: RedFlag[] = [];
   for (const r of RULES) {
     if (r.re.test(script)) out.push({ severity: r.severity, label: r.label });
+  }
+  // Embedded base64 payloads are decoded and re-scanned with the same rules,
+  // so encoding a payload no longer hides it from the scanner. Findings are
+  // labeled with their provenance.
+  for (const report of analyzePayloads(script)) {
+    if (!report.decodedText) continue;
+    for (const r of RULES) {
+      if (r.re.test(report.decodedText)) {
+        const label = `${r.label} (in embedded payload)`;
+        if (!out.some((f) => f.label === label)) {
+          out.push({ severity: r.severity, label });
+        }
+      }
+    }
   }
   return out;
 }
