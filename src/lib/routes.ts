@@ -967,6 +967,89 @@ router
   });
 
 router
+  .route({ path: "admin/register", method: "POST" })
+  .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
+  .body(
+    registerBody.extend({
+      /** Authorship anchor for the listing, since there is no paying wallet
+       *  on this path. Same lowercasing and identity derivation as register. */
+      authorWallet: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+    }),
+  )
+  .description(
+    "Admin: publish a listing through the exact register pipeline — slug check, LLM audit, red-flag backstop, capability detection — but authenticated by ADMIN_TOKEN instead of an x402 payment, with authorship assigned to authorWallet. Exists so the operator can upload large scripts/previews straight from disk instead of through an agent context. Rejected scripts are still not listed.",
+  )
+  .validate(async (body) => {
+    if (!auditAvailable()) {
+      throw new HttpError("Audit service not configured", 503);
+    }
+    if (await slugTaken(body.slug)) {
+      throw new HttpError(`slug "${body.slug}" is already taken`, 409);
+    }
+  })
+  .handler(async ({ body }) => {
+    const wallet = body.authorWallet.toLowerCase();
+    const audit = await auditScript({
+      script: body.script,
+      name: body.name,
+      description: body.description,
+      author: wallet,
+    });
+    const flags = scanRedFlags(body.script);
+    if (audit.verdict === "approve" && hasHighSeverity(flags)) {
+      audit.verdict = "reject";
+      audit.risks = [
+        ...audit.risks,
+        ...flags.filter((f) => f.severity === "high").map((f) => f.label),
+      ];
+    } else if (audit.verdict === "approve" && flags.length > 0) {
+      audit.verdict = "caution";
+    }
+    if (audit.verdict === "reject") {
+      return {
+        listed: false,
+        verdict: "reject",
+        summary: audit.summary,
+        risks: audit.risks,
+        auditedBy: audit.model,
+      };
+    }
+    const row = await createStatusline({
+      slug: body.slug,
+      name: body.name,
+      description: body.description,
+      authorWallet: wallet,
+      priceUsd: Number(body.priceUsd) === 0 ? "0" : body.priceUsd,
+      script: body.script,
+      previewAnsi: body.previewAnsi,
+      previewFrames: body.previewFrames ?? null,
+      capabilities: audit.capabilities.length
+        ? audit.capabilities
+        : detectCapabilities(body.script),
+      auditVerdict: audit.verdict,
+      auditSummary: audit.summary,
+      auditModel: audit.model,
+      redFlags: flags.map((f) => `${f.severity}: ${f.label}`),
+      tags: body.tags,
+      registeredBy: wallet,
+    });
+    return {
+      slug: row.slug,
+      listed: true,
+      url: `${siteUrl()}/statuslines/${row.slug}`,
+      audit: {
+        verdict: audit.verdict,
+        summary: audit.summary,
+        risks: audit.risks,
+        model: audit.model,
+      },
+      capabilities: row.capabilities,
+      priceUsd: row.priceUsd,
+      scriptSha256: sha256Hex(body.script),
+    };
+  });
+
+router
   .route({ path: "admin/preview", method: "POST" })
   .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
   .body(
