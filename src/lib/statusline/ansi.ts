@@ -134,12 +134,16 @@ export function terminalColorHex(
 }
 
 /** CSS resolver used by the browser renderer. Palette slots 0-15 remain theme
- * variables so switching the preview theme behaves like switching terminals. */
+ * variables so switching the preview theme behaves like switching terminals.
+ * Emitted names must match TERM_THEMES in terminal-preview.tsx: an undefined
+ * custom property is silently invalid and the color falls back to the PAGE
+ * text color — unstyled runs then render black-on-black terminal on a light
+ * page (and the reverse), which no real terminal does. */
 export function terminalColorCss(
   color: TerminalColor | undefined,
   fallback: "foreground" | "background",
 ): string {
-  if (!color) return `var(--term-${fallback})`;
+  if (!color) return fallback === "foreground" ? "var(--term-fg)" : "var(--term-bg)";
   if (color.kind === "rgb") return color.value;
   return color.value < 16
     ? `var(--term-color-${color.value})`
