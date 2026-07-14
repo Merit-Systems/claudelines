@@ -19,6 +19,10 @@ import { HttpError } from "@agentcash/router";
 import { router } from "./router";
 import { siteUrl } from "./site";
 import { detectCapabilities } from "./statusline/capabilities";
+import {
+  MAX_PREVIEW_FRAMES_LENGTH,
+  MAX_PREVIEW_LENGTH,
+} from "./statusline/ansi";
 import { hasHighSeverity, scanRedFlags } from "./statusline/redflags";
 import { auditAvailable, auditScript } from "./statusline/audit";
 import { getIdentity, oauthConfigured, startClaim } from "./identity";
@@ -62,7 +66,7 @@ const priceString = z
   .string()
   .regex(/^\d{1,9}(\.\d{1,6})?$/, 'Decimal USD string, e.g. "0.05"');
 
-const previewAnsiSchema = z.string().min(1).max(8_192);
+const previewAnsiSchema = z.string().min(1).max(MAX_PREVIEW_LENGTH);
 
 /** Optional 1 fps animation: successive captures of the same statusline.
  *  Inert text like previewAnsi — the site plays it client-side, never executes. */
@@ -70,9 +74,12 @@ const previewFramesSchema = z
   .array(previewAnsiSchema)
   .min(2)
   .max(30)
-  .refine((frames) => frames.reduce((n, f) => n + f.length, 0) <= 65_536, {
-    message: "Frames exceed 64 KB total",
-  });
+  .refine(
+    (frames) =>
+      frames.reduce((n, f) => n + f.length, 0) <=
+      MAX_PREVIEW_FRAMES_LENGTH,
+    { message: "Frames exceed 512 KB total" },
+  );
 
 /** Integrity hash surfaced everywhere the script is. Lets installers verify
  *  the saved bytes and fail loudly on transfer corruption (e.g. a script
@@ -244,7 +251,7 @@ router
   )
   .inputExample({ previewAnsi: "Neon Nights ~/project $1.42" })
   .description(
-    "Replace a listing's captured ANSI preview and/or its 1 fps animation frames (successive captures, ≤30 × ≤8 KB, 64 KB total). Free and restricted to the wallet that published the listing. This does not change or rerun the script.",
+    "Replace a listing's captured ANSI preview and/or its 1 fps animation frames (successive captures, ≤30 × ≤64 KB, 512 KB total). Free and restricted to the wallet that published the listing. This does not change or rerun the script.",
   )
   .handler(async ({ params, body, wallet }) => {
     if (!wallet) throw new HttpError("Wallet identity required", 401);

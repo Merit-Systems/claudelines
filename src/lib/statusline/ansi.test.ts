@@ -13,6 +13,24 @@ test("retains every captured preview row", () => {
   assert.equal(lines[5][0].text, "six");
 });
 
+test("retains full-width truecolor art beyond the old 8 KB ceiling", () => {
+  const cell = "\x1b[38;2;100;39;125m\x1b[48;2;121;43;134m▀";
+  const frame = Array.from(
+    { length: 6 },
+    () => `${cell.repeat(120)}\x1b[0m`,
+  ).join("\n");
+  assert.ok(frame.length > 8_192);
+
+  const lines = parseAnsi(frame);
+  assert.equal(lines.length, 6);
+  assert.deepEqual(
+    lines.map((line) =>
+      line.reduce((width, run) => width + terminalCellWidth(run.text), 0),
+    ),
+    [120, 120, 120, 120, 120, 120],
+  );
+});
+
 test("applies reset followed by attributes in the same SGR", () => {
   const [[first, second]] = parseAnsi("\x1b[32mgreen\x1b[0;31mred");
   assert.deepEqual(first.fg, { kind: "palette", value: 2 });
