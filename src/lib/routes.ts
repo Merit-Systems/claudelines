@@ -967,6 +967,34 @@ router
   });
 
 router
+  .route({ path: "admin/preview", method: "POST" })
+  .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
+  .body(
+    z
+      .object({
+        slug: z.string().regex(SLUG),
+        previewAnsi: previewAnsiSchema.optional(),
+        previewFrames: previewFramesSchema.optional(),
+      })
+      .refine((b) => b.previewAnsi || b.previewFrames, {
+        message: "Provide previewAnsi, previewFrames, or both",
+      }),
+  )
+  .description(
+    "Admin: replace a listing's captured preview and/or animation frames, same semantics as the owner preview route. Previews are inert text the site plays client-side — this never touches the script. Exists so large captures can be uploaded straight from disk instead of through an agent context. Requires ADMIN_TOKEN.",
+  )
+  .handler(async ({ body }) => {
+    const row = await getStatusline(body.slug);
+    if (!row) throw new HttpError("Statusline not found", 404);
+    const previewAnsi = body.previewAnsi ?? body.previewFrames?.[0];
+    await updateStatuslinePreview(row.slug, {
+      previewAnsi,
+      previewFrames: body.previewFrames,
+    });
+    return { slug: row.slug, updated: true };
+  });
+
+router
   .route({ path: "admin/delete", method: "POST" })
   .apiKey((key) => (key === process.env.ADMIN_TOKEN ? { admin: true } : null))
   .body(z.object({ slug: z.string().regex(SLUG) }))
