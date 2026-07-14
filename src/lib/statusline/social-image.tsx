@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import sharp from "sharp";
 
 import {
   CANONICAL_DARK_TERMINAL_PALETTE,
@@ -205,6 +206,65 @@ export function blockArtGrid(lines: StyledRun[][]): BlockArtGrid | null {
   return { width: maxCells, height: lines.length, rects };
 }
 
+interface PreviewLayout {
+  lines: StyledRun[][];
+  maxCells: number;
+  cellWidth: number;
+  fontSize: number;
+  rowHeight: number;
+  blockArt: BlockArtGrid | null;
+}
+
+function previewLayout(preview: string | null): PreviewLayout {
+  const lines = parseAnsi(preview ?? "");
+  const maxCells = Math.max(
+    1,
+    ...lines.map((line) =>
+      line.reduce((width, run) => width + terminalCellWidth(run.text), 0),
+    ),
+  );
+  const availableWidth = 956;
+  const availableHeight = 142;
+  const cellWidth = Math.min(13, availableWidth / maxCells);
+  // JetBrains Mono's advance is 0.6em. This keeps every glyph centered in the
+  // exact cell width used to fit the complete captured frame.
+  const widthFitFontSize = cellWidth / 0.6;
+  const heightFitFontSize = availableHeight / (lines.length * 1.24);
+  const fontSize = Math.min(21, widthFitFontSize, heightFitFontSize);
+  const rowHeight = fontSize * 1.24;
+
+  return {
+    lines,
+    maxCells,
+    cellWidth,
+    fontSize,
+    rowHeight,
+    blockArt: blockArtGrid(lines),
+  };
+}
+
+async function rasterizeBlockArt(
+  grid: BlockArtGrid,
+  width: number,
+  height: number,
+): Promise<string> {
+  const pixelWidth = Math.max(1, Math.round(width));
+  const pixelHeight = Math.max(1, Math.round(height));
+  const rects = grid.rects
+    .map(
+      (rect) =>
+        `<rect x="${rect.x}" y="${rect.y}" width="${rect.width}" height="${rect.height}" ` +
+        `fill="${rect.fill}"${rect.opacity === undefined ? "" : ` fill-opacity="${rect.opacity}"`}/>`
+    )
+    .join("");
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${pixelWidth}" height="${pixelHeight}" ` +
+    `viewBox="0 0 ${grid.width} ${grid.height}" preserveAspectRatio="none" ` +
+    `shape-rendering="crispEdges">${rects}</svg>`;
+  const png = await sharp(Buffer.from(svg)).png().toBuffer();
+  return `data:image/png;base64,${png.toString("base64")}`;
+}
+
 const terminalFontFiles = [
   {
     name: "JetBrains Mono",
@@ -321,29 +381,16 @@ function PreviewRun({
 }
 
 function StatuslinePreview({
+  blockArtImage,
   fontFamily,
-  preview,
+  layout,
 }: {
+  blockArtImage: string | null;
   fontFamily: string;
-  preview: string | null;
+  layout: PreviewLayout;
 }) {
-  const lines = parseAnsi(preview ?? "");
-  const maxCells = Math.max(
-    1,
-    ...lines.map((line) =>
-      line.reduce((width, run) => width + terminalCellWidth(run.text), 0),
-    ),
-  );
-  const availableWidth = 956;
   const availableHeight = 142;
-  const cellWidth = Math.min(13, availableWidth / maxCells);
-  // JetBrains Mono's advance is 0.6em. This keeps every glyph centered in the
-  // exact cell width used to fit the complete captured frame.
-  const widthFitFontSize = cellWidth / 0.6;
-  const heightFitFontSize = availableHeight / (lines.length * 1.24);
-  const fontSize = Math.min(21, widthFitFontSize, heightFitFontSize);
-  const rowHeight = fontSize * 1.24;
-  const blockArt = blockArtGrid(lines);
+  const { cellWidth, fontSize, lines, maxCells, rowHeight } = layout;
 
   return (
     <div
@@ -356,31 +403,20 @@ function StatuslinePreview({
         overflow: "hidden",
       }}
     >
-      {blockArt ? (
-        <svg
+      {blockArtImage ? (
+        // next/image cannot participate in ImageResponse's SVG render pass.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          alt=""
+          src={blockArtImage}
           width={cellWidth * maxCells}
           height={rowHeight * lines.length}
-          viewBox={`0 0 ${blockArt.width} ${blockArt.height}`}
-          preserveAspectRatio="none"
-          shapeRendering="crispEdges"
           style={{
             width: cellWidth * maxCells,
             height: rowHeight * lines.length,
             flexShrink: 0,
           }}
-        >
-          {blockArt.rects.map((rect, index) => (
-            <rect
-              key={index}
-              x={rect.x}
-              y={rect.y}
-              width={rect.width}
-              height={rect.height}
-              fill={rect.fill}
-              fillOpacity={rect.opacity}
-            />
-          ))}
-        </svg>
+        />
       ) : (
         lines.map((runs, lineIndex) => (
           <div
@@ -441,7 +477,17 @@ function ClaudeMark() {
 
 export async function createStatuslineSocialImage(row: StatuslineWithAuthor) {
   const preview = row.previewFrames?.[0] ?? row.previewAnsi;
-  const fonts = await loadTerminalFonts();
+  const layout = previewLayout(preview);
+  const [fonts, blockArtImage] = await Promise.all([
+    loadTerminalFonts(),
+    layout.blockArt
+      ? rasterizeBlockArt(
+          layout.blockArt,
+          layout.cellWidth * layout.maxCells,
+          layout.rowHeight * layout.lines.length,
+        )
+      : null,
+  ]);
   const terminalFontFamily = fonts.length ? "JetBrains Mono" : "monospace";
 
   return new ImageResponse(
@@ -580,8 +626,9 @@ export async function createStatuslineSocialImage(row: StatuslineWithAuthor) {
             }}
           >
             <StatuslinePreview
+              blockArtImage={blockArtImage}
               fontFamily={terminalFontFamily}
-              preview={preview}
+              layout={layout}
             />
           </div>
           <div
